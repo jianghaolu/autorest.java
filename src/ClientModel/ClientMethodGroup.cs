@@ -8,7 +8,7 @@ namespace AutoRest.Java.Model
     /// <summary>
     /// The details of a group of methods within a ServiceClient.
     /// </summary>
-    public class MethodGroupClient
+    public class ClientMethodGroup
     {
         /// <summary>
         /// Create a new MethodGroupClient with the provided properties.
@@ -21,7 +21,7 @@ namespace AutoRest.Java.Model
         /// <param name="variableType">The type of this MethodGroupClient when it is used as a variable.</param>
         /// <param name="variableName">The variable name for any instances of this MethodGroupClient.</param>
         /// <param name="clientMethods">The ClientMethods for this MethodGroupClient.</param>
-        public MethodGroupClient(string className, string interfaceName, IEnumerable<string> implementedInterfaces, RestAPI restAPI, string serviceClientName, string variableType, string variableName, IEnumerable<ClientMethod> clientMethods)
+        public ClientMethodGroup(string className, string interfaceName, IEnumerable<string> implementedInterfaces, RestAPI restAPI, string serviceClientName, string variableType, string variableName, IEnumerable<ClientMethod> clientMethods)
         {
             ClassName = className;
             InterfaceName = interfaceName;

@@ -9,7 +9,7 @@ namespace AutoRest.Java.Model
     /// <summary>
     /// A basic type used by a REST API method.
     /// </summary>
-    public class PrimitiveType : IType
+    public class PrimitiveType : IModelTypeJv
     {
         public static readonly PrimitiveType Void = new PrimitiveType("void", ClassType.Void);
         public static readonly PrimitiveType Boolean = new PrimitiveType("boolean", ClassType.Boolean, (string defaultValueExpression) => defaultValueExpression.ToLowerInvariant());
@@ -45,12 +45,12 @@ namespace AutoRest.Java.Model
         {
         }
 
-        public IType AsNullable()
+        public IModelTypeJv AsNullable()
         {
             return NullableType;
         }
 
-        public bool Contains(IType type)
+        public bool Contains(IModelTypeJv type)
         {
             return this == type;
         }

@@ -6,17 +6,17 @@ using System.Collections.Generic;
 
 namespace AutoRest.Java.Model
 {
-    public class ArrayType : IType
+    public class ArrayType : IModelTypeJv
     {
         public static readonly ArrayType ByteArray = new ArrayType(PrimitiveType.Byte, (string defaultValueExpression) => defaultValueExpression == null ? "new byte[0]" : $"\"{defaultValueExpression}\".getBytes()");
 
-        private ArrayType(IType elementType, Func<string,string> defaultValueExpressionConverter)
+        private ArrayType(IModelTypeJv elementType, Func<string,string> defaultValueExpressionConverter)
         {
             ElementType = elementType;
             DefaultValueExpressionConverter = defaultValueExpressionConverter;
         }
 
-        public IType ElementType { get; }
+        public IModelTypeJv ElementType { get; }
 
         private Func<string, string> DefaultValueExpressionConverter { get; }
 
@@ -25,12 +25,12 @@ namespace AutoRest.Java.Model
             return $"{ElementType}[]";
         }
         
-        public IType AsNullable()
+        public IModelTypeJv AsNullable()
         {
             return this;
         }
 
-        public bool Contains(IType type)
+        public bool Contains(IModelTypeJv type)
         {
             return this == type || ElementType.Contains(type);
         }

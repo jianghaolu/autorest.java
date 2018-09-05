@@ -9,7 +9,7 @@ namespace AutoRest.Java.Model
     /// <summary>
     /// A parameter for a method.
     /// </summary>
-    public class Parameter
+    public class ClientParameter
     {
         /// <summary>
         /// Create a new Parameter with the provided properties.
@@ -20,7 +20,7 @@ namespace AutoRest.Java.Model
         /// <param name="name">The name of this parameter.</param>
         /// <param name="isRequired">Whether or not this parameter is required.</param>
         /// <param name="annotations">The annotations that should be part of this Parameter's declaration.</param>
-        public Parameter(string description, bool isFinal, IType type, string name, bool isRequired, IEnumerable<ClassType> annotations)
+        public ClientParameter(string description, bool isFinal, IModelTypeJv type, string name, bool isRequired, IEnumerable<ClassType> annotations)
         {
             Description = description;
             IsFinal = isFinal;
@@ -43,7 +43,7 @@ namespace AutoRest.Java.Model
         /// <summary>
         /// The type of this parameter.
         /// </summary>
-        public IType Type { get; }
+        public IModelTypeJv Type { get; }
 
         /// <summary>
         /// The name of this parameter.

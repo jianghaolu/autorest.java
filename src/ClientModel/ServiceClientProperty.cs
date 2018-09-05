@@ -18,7 +18,7 @@ namespace AutoRest.Java.Model
         /// <param name="name">The name of this property.</param>
         /// <param name="isReadOnly">Whether or not this property's value can be changed by the client library.</param>
         /// <param name="defaultValueExpression">The expression that evaluates to this property's default value.</param>
-        public ServiceClientProperty(string description, IType type, string name, bool isReadOnly, string defaultValueExpression)
+        public ServiceClientProperty(string description, IModelTypeJv type, string name, bool isReadOnly, string defaultValueExpression)
         {
             Description = description;
             Type = type;
@@ -35,7 +35,7 @@ namespace AutoRest.Java.Model
         /// <summary>
         /// The type of this property that is exposed via the client.
         /// </summary>
-        public IType Type { get; }
+        public IModelTypeJv Type { get; }
 
         /// <summary>
         /// The name of this property.

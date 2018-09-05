@@ -68,6 +68,7 @@
 
   <ItemGroup>
     <Folder Include="Properties\" />
+    <Folder Include="Templates\NewFolder\azure\" />
   </ItemGroup>
   <ItemGroup>
     <DotNetCliToolReference Include="dotnet-Perks.CodeGen" Version="2.0.1" />

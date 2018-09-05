@@ -14,11 +14,13 @@ namespace AutoRest.Java.Model
         /// Create a new ReturnValue object from the provided properties.
         /// </summary>
         /// <param name="description">The description of the return value.</param>
-        /// <param name="type">The type of the return value.</param>
-        public ReturnValue(string description, IType type)
+        /// <param name="wireType">The type of the return value sent on the wire.</param>
+        /// <param name="clientType">The type of the return value users interact with.</param>
+        public ReturnValue(string description, IModelTypeJv wireType, IModelTypeJv clientType)
         {
             Description = description;
-            Type = type;
+            WireType = wireType;
+            ClientType = clientType;
         }
 
         /// <summary>
@@ -27,9 +29,14 @@ namespace AutoRest.Java.Model
         public string Description { get; }
 
         /// <summary>
-        /// The type of the return value.
+        /// The type of the return value sent on the wire.
         /// </summary>
-        public IType Type { get; }
+        public IModelTypeJv WireType { get; }
+
+        /// <summary>
+        /// The type of the return value users interact with.
+        /// </summary>
+        public IModelTypeJv ClientType { get; }
 
         /// <summary>
         /// Add this return value's imports to the provided ISet of imports.
@@ -38,7 +45,8 @@ namespace AutoRest.Java.Model
         /// <param name="includeImplementationImports">Whether or not to include imports that are only necessary for method implementations.</param>
         public void AddImportsTo(ISet<string> imports, bool includeImplementationImports)
         {
-            Type.AddImportsTo(imports, includeImplementationImports);
+            WireType.AddImportsTo(imports, includeImplementationImports);
+            ClientType.AddImportsTo(imports, includeImplementationImports);
         }
     }
 }

@@ -29,7 +29,9 @@ namespace AutoRest.Java.Model
         /// <param name="type">The type of this ClientMethod.</param>
         /// <param name="restAPIMethod">The RestAPIMethod that this ClientMethod eventually calls.</param>
         /// <param name="expressionsToValidate">The expressions (parameters and service client properties) that need to be validated in this ClientMethod.</param>
-        public ClientMethod(string description, ReturnValue returnValue, string name, IEnumerable<Parameter> parameters, bool onlyRequiredParameters, ClientMethodType type, RestAPIMethod restAPIMethod, IEnumerable<string> expressionsToValidate)
+        /// <param name="pagingNextMethodInfo">The information about the next page method if this is a pageable API.</param>
+        /// <param name="serviceCallbackParameter">The async ServiceCallback parameter for this method.</param>
+        public ClientMethod(string description, ReturnValue returnValue, string name, IEnumerable<ClientParameter> parameters, bool onlyRequiredParameters, ClientMethodType type, MethodJv restAPIMethod, IEnumerable<string> expressionsToValidate, PagingNextMethodInfo pagingNextMethodInfo, ClientParameter serviceCallbackParameter)
         {
             Description = description;
             ReturnValue = returnValue;
@@ -39,6 +41,8 @@ namespace AutoRest.Java.Model
             Type = type;
             RestAPIMethod = restAPIMethod;
             ExpressionsToValidate = expressionsToValidate;
+            PagingNextMethodInfo = pagingNextMethodInfo;
+            ServiceCallbackParameter = serviceCallbackParameter;
         }
 
         /// <summary>
@@ -59,7 +63,7 @@ namespace AutoRest.Java.Model
         /// <summary>
         /// The parameters of this ClientMethod.
         /// </summary>
-        public IEnumerable<Parameter> Parameters { get; }
+        public IEnumerable<ClientParameter> Parameters { get; }
 
         /// <summary>
         /// Whether or not this ClientMethod has omitted optional parameters.
@@ -74,7 +78,7 @@ namespace AutoRest.Java.Model
         /// <summary>
         /// The RestAPIMethod that this ClientMethod eventually calls.
         /// </summary>
-        public RestAPIMethod RestAPIMethod { get; }
+        public MethodJv RestAPIMethod { get; }
 
         /// <summary>
         /// The expressions (parameters and service client properties) that need to be validated in this ClientMethod.
@@ -89,17 +93,27 @@ namespace AutoRest.Java.Model
         /// <summary>
         /// Get the comma-separated list of parameter declarations for this ClientMethod.
         /// </summary>
-        public string ParametersDeclaration => string.Join(", ", Parameters.Select((Parameter parameter) => parameter.Declaration));
+        public string ParametersDeclaration => string.Join(", ", Parameters.Select((ClientParameter parameter) => parameter.Declaration));
 
         /// <summary>
         /// Get the comma-separated list of parameter names for this ClientMethod.
         /// </summary>
-        public string ArgumentList => string.Join(", ", Parameters.Select((Parameter parameter) => parameter.Name));
+        public string ArgumentList => string.Join(", ", Parameters.Select((ClientParameter parameter) => parameter.Name));
 
         /// <summary>
         /// The full declaration of this ClientMethod.
         /// </summary>
-        public string Declaration => $"{ReturnValue.Type} {Name}({ParametersDeclaration})";
+        public string Declaration => $"{ReturnValue.WireType} {Name}({ParametersDeclaration})";
+
+        /// <summary>
+        /// The information about the next page method if this represents a pageable API.
+        /// </summary>
+        public PagingNextMethodInfo PagingNextMethodInfo { get; }
+
+        /// <summary>
+        /// The async ServiceCallback parameter for this method.
+        /// </summary>
+        public ClientParameter ServiceCallbackParameter { get; }
 
         /// <summary>
         /// Add this ClientMethod's imports to the provided ISet of imports.
@@ -110,7 +124,7 @@ namespace AutoRest.Java.Model
         {
             ReturnValue.AddImportsTo(imports, includeImplementationImports);
 
-            foreach (Parameter parameter in Parameters)
+            foreach (ClientParameter parameter in Parameters)
             {
                 parameter.AddImportsTo(imports, includeImplementationImports);
             }

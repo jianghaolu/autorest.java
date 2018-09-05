@@ -1,14 +1,18 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
+using AutoRest.Core.Extensibility;
+using AutoRest.Java.Model;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace AutoRest.Java
 {
     /// <summary>
     /// Settings that are used by the Java AutoRest Generator.
     /// </summary>
-    public class JavaSettings
+    public class JavaSettings : IGeneratorSettings
     {
         private readonly Action<bool> setAddCredentials;
 
@@ -122,5 +126,26 @@ namespace AutoRest.Java
         /// Whether or not Service and Method Group client method overloads that omit optional parameters will be created.
         /// </summary>
         public bool RequiredParameterClientMethods { get; }
+
+        internal string GetSubPackage(params string[] packageSuffixes)
+        {
+            string package = this.Package;
+            if (packageSuffixes != null)
+            {
+                foreach (string packageSuffix in packageSuffixes)
+                {
+                    if (!string.IsNullOrEmpty(packageSuffix))
+                    {
+                        package += "." + packageSuffix.Trim('.');
+                    }
+                }
+            }
+            return package;
+        }
+
+        internal IEnumerable<ClassType> GetClientMethodParameterAnnotations(bool isRequired)
+        {
+            return NonNullAnnotations && isRequired ? new[] { ClassType.NonNull } : Enumerable.Empty<ClassType>();
+        }
     }
 }

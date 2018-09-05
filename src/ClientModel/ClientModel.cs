@@ -9,7 +9,7 @@ namespace AutoRest.Java.Model
     /// <summary>
     /// A model that is defined by the service.
     /// </summary>
-    public class ServiceModel
+    public class ClientModel
     {
         /// <summary>
         /// Create a new ServiceModel with the provided properties.
@@ -27,7 +27,7 @@ namespace AutoRest.Java.Model
         /// <param name="xmlName">The name that will be used for this model's XML element representation.</param>
         /// <param name="properties">The properties for this model.</param>
         /// <param name="skipParentValidation">The properties for this model.</param>
-        public ServiceModel(string package, string name, IEnumerable<string> imports, string description, bool isPolymorphic, string polymorphicDiscriminator, string serializedName, bool needsFlatten, ServiceModel parentModel, IEnumerable<ServiceModel> derivedModels, string xmlName, IEnumerable<ServiceModelProperty> properties, bool skipParentValidation)
+        public ClientModel(string package, string name, IEnumerable<string> imports, string description, bool isPolymorphic, string polymorphicDiscriminator, string serializedName, bool needsFlatten, ClientModel parentModel, IEnumerable<ClientModel> derivedModels, string xmlName, IEnumerable<ClientModelProperty> properties, bool skipParentValidation)
         {
             Package = package;
             Name = name;
@@ -92,12 +92,12 @@ namespace AutoRest.Java.Model
         /// <summary>
         /// Get the parent model of this model.
         /// </summary>
-        public ServiceModel ParentModel { get; }
+        public ClientModel ParentModel { get; }
 
         /// <summary>
         /// Get the models that derive from this model.
         /// </summary>
-        public IEnumerable<ServiceModel> DerivedModels { get; }
+        public IEnumerable<ClientModel> DerivedModels { get; }
 
         /// <summary>
         /// Get the name that will be used for this model's XML element representation.
@@ -107,7 +107,7 @@ namespace AutoRest.Java.Model
         /// <summary>
         /// Get the properties for this model.
         /// </summary>
-        public IEnumerable<ServiceModelProperty> Properties { get; }
+        public IEnumerable<ClientModelProperty> Properties { get; }
 
         /// <summary>
         /// Get whether to skip client-side validation for the parent class.
@@ -153,7 +153,7 @@ namespace AutoRest.Java.Model
                 }
             }
 
-            foreach (ServiceModelProperty property in Properties)
+            foreach (ClientModelProperty property in Properties)
             {
                 property.AddImportsTo(imports, settings);
             }

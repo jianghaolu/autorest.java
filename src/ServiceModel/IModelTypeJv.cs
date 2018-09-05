@@ -8,20 +8,20 @@ namespace AutoRest.Java.Model
     /// <summary>
     /// A type used by a service.
     /// </summary>
-    public interface IType
+    public interface IModelTypeJv
     {
         /// <summary>
         /// Convert this IType to an IType that is nullable.
         /// </summary>
         /// <returns>A version of this IType that is nullable.</returns>
-        IType AsNullable();
+        IModelTypeJv AsNullable();
 
         /// <summary>
         /// Get whether or not this IType contains (or is) the provided type.
         /// </summary>
         /// <param name="type">The type to search for.</param>
         /// <returns>Whether or not this IType contains (or is) the provided type.</returns>
-        bool Contains(IType type);
+        bool Contains(IModelTypeJv type);
 
         /// <summary>
         /// Add this type's imports to the provided ISet of imports.

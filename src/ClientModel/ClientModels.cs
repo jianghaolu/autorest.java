@@ -6,41 +6,41 @@ using System.Collections.Generic;
 
 namespace AutoRest.Java.Model
 {
-    public class ServiceModels : IEnumerable<ServiceModel>
+    public class ClientModels : IEnumerable<ClientModel>
     {
-        private readonly IDictionary<string, ServiceModel> nameMap = new Dictionary<string, ServiceModel>();
-        private readonly IDictionary<string, List<ServiceModel>> derivedTypesMap = new Dictionary<string, List<ServiceModel>>();
+        private readonly IDictionary<string, ClientModel> nameMap = new Dictionary<string, ClientModel>();
+        private readonly IDictionary<string, List<ClientModel>> derivedTypesMap = new Dictionary<string, List<ClientModel>>();
 
-        public ServiceModel GetModel(string modelName)
+        public ClientModel GetModel(string modelName)
         {
             return nameMap.ContainsKey(modelName) ? nameMap[modelName] : null;
         }
 
-        public void AddModel(ServiceModel model)
+        public void AddModel(ClientModel model)
         {
             nameMap[model.Name] = model;
 
-            ServiceModel parentModel = model.ParentModel;
+            ClientModel parentModel = model.ParentModel;
             if (parentModel != null)
             {
-                List<ServiceModel> derivedTypesList = GetDerivedTypeList(parentModel.Name);
+                List<ClientModel> derivedTypesList = GetDerivedTypeList(parentModel.Name);
                 derivedTypesList.Add(model);
             }
         }
 
-        public IEnumerable<ServiceModel> GetDerivedTypes(string parentModelName)
+        public IEnumerable<ClientModel> GetDerivedTypes(string parentModelName)
             => GetDerivedTypeList(parentModelName);
 
-        private List<ServiceModel> GetDerivedTypeList(string parentModelName)
+        private List<ClientModel> GetDerivedTypeList(string parentModelName)
         {
             if (!derivedTypesMap.ContainsKey(parentModelName))
             {
-                derivedTypesMap.Add(parentModelName, new List<ServiceModel>());
+                derivedTypesMap.Add(parentModelName, new List<ClientModel>());
             }
             return derivedTypesMap[parentModelName];
         }
 
-        public IEnumerator<ServiceModel> GetEnumerator()
+        public IEnumerator<ClientModel> GetEnumerator()
         {
             return nameMap.Values.GetEnumerator();
         }

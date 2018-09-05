@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
+using System;
 using System.Collections.Generic;
 
 namespace AutoRest.Java.Model
@@ -21,7 +22,10 @@ namespace AutoRest.Java.Model
         /// <param name="properties">The properties of this ServiceClient</param>
         /// <param name="constructors">The constructors for this ServiceClient.</param>
         /// <param name="clientMethods">The client method overloads for this ServiceClient.</param>
-        public ServiceClient(string className, string interfaceName, RestAPI restAPI, IEnumerable<MethodGroupClient> methodGroupClients, IEnumerable<ServiceClientProperty> properties, IEnumerable<Constructor> constructors, IEnumerable<ClientMethod> clientMethods)
+        /// <param name="serviceClientCredentialsParameter">The credentials parameter on the service client.</param>
+        /// <param name="azureEnvironmentParameter">The Azure environment for the service client.</param>
+        /// <param name="httpPipelineParameter">The HTTP pipeline for the service client.</param>
+        public ServiceClient(string className, string interfaceName, RestAPI restAPI, IEnumerable<ClientMethodGroup> methodGroupClients, IEnumerable<ServiceClientProperty> properties, IEnumerable<Constructor> constructors, IEnumerable<ClientMethod> clientMethods, Lazy<ClientParameter> serviceClientCredentialsParameter, Lazy<ClientParameter> azureEnvironmentParameter, Lazy<ClientParameter> httpPipelineParameter)
         {
             ClassName = className;
             InterfaceName = interfaceName;
@@ -30,6 +34,9 @@ namespace AutoRest.Java.Model
             Properties = properties;
             Constructors = constructors;
             ClientMethods = clientMethods;
+            ServiceClientCredentialsParameter = serviceClientCredentialsParameter;
+            AzureEnvironmentParameter = azureEnvironmentParameter;
+            HttpPipelineParameter = httpPipelineParameter;
         }
 
         /// <summary>
@@ -50,7 +57,7 @@ namespace AutoRest.Java.Model
         /// <summary>
         /// The MethodGroupClients that belong to this ServiceClient.
         /// </summary>
-        public IEnumerable<MethodGroupClient> MethodGroupClients { get; }
+        public IEnumerable<ClientMethodGroup> MethodGroupClients { get; }
 
         /// <summary>
         /// The properties of this ServiceClient.
@@ -66,6 +73,21 @@ namespace AutoRest.Java.Model
         /// The client method overloads for this ServiceClient.
         /// </summary>
         public IEnumerable<ClientMethod> ClientMethods { get; }
+
+        /// <summary>
+        /// The credentials parameter on the service client.
+        /// </summary>
+        public Lazy<ClientParameter> ServiceClientCredentialsParameter { get; }
+
+        /// <summary>
+        /// The Azure environment for the service client.
+        /// </summary>
+        public Lazy<ClientParameter> AzureEnvironmentParameter { get; }
+
+        /// <summary>
+        /// The HTTP pipeline for the service client.
+        /// </summary>
+        public Lazy<ClientParameter> HttpPipelineParameter { get; }
 
         /// <summary>
         /// Add this property's imports to the provided ISet of imports.
@@ -95,7 +117,7 @@ namespace AutoRest.Java.Model
                 if (!settings.IsFluent)
                 {
                     imports.Add($"{settings.Package}.{InterfaceName}");
-                    foreach (MethodGroupClient methodGroupClient in MethodGroupClients)
+                    foreach (ClientMethodGroup methodGroupClient in MethodGroupClients)
                     {
                         imports.Add($"{settings.Package}.{methodGroupClient.InterfaceName}");
                     }

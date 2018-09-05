@@ -16,7 +16,7 @@ namespace AutoRest.Java.Model
         /// <param name="name">The name of the REST API interface.</param>
         /// <param name="baseURL">The base URL that will be used for each REST API method.</param>
         /// <param name="methods">The methods of this REST API.</param>
-        public RestAPI(string name, string baseURL, IEnumerable<RestAPIMethod> methods)
+        public RestAPI(string name, string baseURL, IEnumerable<MethodJv> methods)
         {
             Name = name;
             BaseURL = baseURL;
@@ -36,7 +36,7 @@ namespace AutoRest.Java.Model
         /// <summary>
         /// Get the methods of this REST API.
         /// </summary>
-        public IEnumerable<RestAPIMethod> Methods { get; }
+        public IEnumerable<MethodJv> Methods { get; }
 
         /// <summary>
         /// Add this property's imports to the provided ISet of imports.
@@ -50,7 +50,7 @@ namespace AutoRest.Java.Model
                 imports.Add("com.microsoft.rest.v2.annotations.Host");
             }
 
-            foreach (RestAPIMethod method in Methods)
+            foreach (MethodJv method in Methods)
             {
                 method.AddImportsTo(imports, includeImplementationImports, settings);
             }

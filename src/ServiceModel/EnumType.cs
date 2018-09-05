@@ -8,7 +8,7 @@ namespace AutoRest.Java.Model
     /// <summary>
     /// The details of an enumerated type that is used by a service.
     /// </summary>
-    public class EnumType : IType
+    public class EnumType : IModelTypeJv
     {
         /// <summary>
         /// Create a new Enum with the provided properties.
@@ -50,12 +50,12 @@ namespace AutoRest.Java.Model
             imports.Add($"{Package}.{Name}");
         }
 
-        public IType AsNullable()
+        public IModelTypeJv AsNullable()
         {
             return this;
         }
 
-        public bool Contains(IType type)
+        public bool Contains(IModelTypeJv type)
         {
             return this == type;
         }

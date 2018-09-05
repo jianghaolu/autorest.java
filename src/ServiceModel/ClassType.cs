@@ -7,7 +7,7 @@ using System.Collections.Generic;
 
 namespace AutoRest.Java.Model
 {
-    public class ClassType : IType
+    public class ClassType : IModelTypeJv
     {
         public static readonly ClassType Void = new ClassType("java.lang", "Void");
         public static readonly ClassType Boolean = new ClassType("java.lang", "Boolean", defaultValueExpressionConverter: (string defaultValueExpression) => defaultValueExpression.ToLowerInvariant());
@@ -79,12 +79,12 @@ namespace AutoRest.Java.Model
             return Name;
         }
 
-        public IType AsNullable()
+        public IModelTypeJv AsNullable()
         {
             return this;
         }
 
-        public bool Contains(IType type)
+        public bool Contains(IModelTypeJv type)
         {
             return this == type;
         }

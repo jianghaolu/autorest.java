@@ -6,23 +6,23 @@ using System.Collections.Generic;
 namespace AutoRest.Java.Model
 {
     /// <summary>
-    /// A map type used by a REST API method.
+    /// A sequence type used by a REST API method.
     /// </summary>
-    public class MapType : GenericType
+    public class ListType : GenericType
     {
         /// <summary>
-        /// Create a new MapType from the provided properties.
+        /// Create a new RestAPISequenceType from the provided properties.
         /// </summary>
-        /// <param name="valueType">The type of values that are stored in this dictionary.</param>
-        public MapType(IType valueType)
-            : base("java.util", "Map", ClassType.String, valueType)
+        /// <param name="elementType">The type of elements that are stored in this sequence.</param>
+        public ListType(IModelTypeJv elementType)
+            : base("java.util", "List", elementType)
         {
         }
 
         /// <summary>
-        /// The type of values that are stored in this map.
+        /// The type of elements that are stored in this sequence.
         /// </summary>
-        public IType ValueType => TypeArguments[1];
+        public IModelTypeJv ElementType => TypeArguments[0];
 
         public override void AddImportsTo(ISet<string> imports, bool includeImplementationImports)
         {
@@ -30,7 +30,7 @@ namespace AutoRest.Java.Model
 
             if (includeImplementationImports)
             {
-                imports.Add("java.util.HashMap");
+                imports.Add("java.util.ArrayList");
             }
         }
     }

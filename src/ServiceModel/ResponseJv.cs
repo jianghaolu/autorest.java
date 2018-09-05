@@ -3,21 +3,21 @@
 
 namespace AutoRest.Java.Model
 {
-    public sealed class ResponseModel
+    public sealed class ResponseJv
     {
         public string Name { get; }
         public string Package { get; }
         public string Description { get; }
-        public IType HeadersType { get; }
-        public IType BodyType { get; }
+        public IModelTypeJv Headers { get; }
+        public IModelTypeJv Body { get; }
 
-        public ResponseModel(string name, string package, string description, IType headersType, IType bodyType)
+        public ResponseJv(string name, string package, string description, IModelTypeJv headersType, IModelTypeJv bodyType)
         {
             Name = name;
             Package = package;
             Description = description;
-            HeadersType = headersType;
-            BodyType = bodyType;
+            Headers = headersType;
+            Body = bodyType;
         }
     }
 }

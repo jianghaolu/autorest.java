@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
+using AutoRest.Core.Model;
 using System.Collections.Generic;
 
 namespace AutoRest.Java.Model
@@ -8,12 +9,13 @@ namespace AutoRest.Java.Model
     /// <summary>
     /// A parameter for a REST API method.
     /// </summary>
-    public class RestAPIParameter
+    public class ParameterJv
     {
         /// <summary>
         /// Create a new RestAPIParameter based on the provided properties.
         /// </summary>
         /// <param name="description">The description of this parameter.</param>
+        /// <param name="autoRestParameter">The AutoRestParameter to create this from.</param>
         /// <param name="type">The type of this parameter.</param>
         /// <param name="name">The name of this parameter when it is used as a variable.</param>
         /// <param name="requestParameterLocation">The location within the REST API method's HttpRequest where this parameter will be added.</param>
@@ -23,9 +25,10 @@ namespace AutoRest.Java.Model
         /// <param name="isRequired">Whether or not this parameter is required.</param>
         /// <param name="isServiceClientProperty">Whether or not this parameter's value comes from a ServiceClientProperty.</param>
         /// <param name="headerCollectionPrefix">The x-ms-header-collection-prefix extension value.</param>
-        public RestAPIParameter(string description, IType type, string name, RequestParameterLocation requestParameterLocation, string requestParameterName, bool alreadyEncoded, bool isConstant, bool isRequired, bool isServiceClientProperty, string headerCollectionPrefix)
+        public ParameterJv(string description, Parameter autoRestParameter, IModelTypeJv type, string name, RequestParameterLocation requestParameterLocation, string requestParameterName, bool alreadyEncoded, bool isConstant, bool isRequired, bool isServiceClientProperty, string headerCollectionPrefix)
         {
             Description = description;
+            this.AutoRestParameter = autoRestParameter;
             Type = type;
             Name = name;
             RequestParameterLocation = requestParameterLocation;
@@ -43,9 +46,14 @@ namespace AutoRest.Java.Model
         public string Description { get; }
 
         /// <summary>
+        /// The AutoRestParameter that this Parameter was created from.
+        /// </summary>
+        public Parameter AutoRestParameter { get; }
+
+        /// <summary>
         /// Get the type of this parameter.
         /// </summary>
-        public IType Type { get; }
+        public IModelTypeJv Type { get; }
 
         /// <summary>
         /// Get the name of this parameter when it is used as a variable.

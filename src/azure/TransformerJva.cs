@@ -7,19 +7,39 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Newtonsoft.Json.Linq;
-using AutoRest.Core;
-using AutoRest.Core.Model;
+using AutoRestCodeModel = AutoRest.Core.Model.CodeModel;
+using AutoRestCompositeType = AutoRest.Core.Model.CompositeType;
+using AutoRestDictionaryType = AutoRest.Core.Model.DictionaryType;
+using AutoRestEnumType = AutoRest.Core.Model.EnumType;
+using AutoRestEnumValue = AutoRest.Core.Model.EnumValue;
+using AutoRestHttpMethod = AutoRest.Core.Model.HttpMethod;
+using AutoRestIModelType = AutoRest.Core.Model.IModelType;
+using AutoRestIParent = AutoRest.Core.Model.IParent;
+using AutoRestIVariable = AutoRest.Core.Model.IVariable;
+using AutoRestKnownPrimaryType = AutoRest.Core.Model.KnownPrimaryType;
+using AutoRestMethod = AutoRest.Core.Model.Method;
+using AutoRestMethodGroup = AutoRest.Core.Model.MethodGroup;
+using AutoRestModelType = AutoRest.Core.Model.ModelType;
+using AutoRestParameter = AutoRest.Core.Model.Parameter;
+using AutoRestParameterLocation = AutoRest.Core.Model.ParameterLocation;
+using AutoRestParameterMapping = AutoRest.Core.Model.ParameterMapping;
+using AutoRestParameterTransformation = AutoRest.Core.Model.ParameterTransformation;
+using AutoRestPrimaryType = AutoRest.Core.Model.PrimaryType;
+using AutoRestProperty = AutoRest.Core.Model.Property;
+using AutoRestResponse = AutoRest.Core.Model.Response;
+using AutoRestSequenceType = AutoRest.Core.Model.SequenceType;
 using AutoRest.Core.Utilities;
 using AutoRest.Core.Utilities.Collections;
-using AutoRest.Extensions;
 using AutoRest.Extensions.Azure;
 using AutoRest.Java.Model;
 using static AutoRest.Core.Utilities.DependencyInjection;
 using System.Net;
+using AutoRest.Core;
+using AutoRest.Extensions;
 
 namespace AutoRest.Java.Azure
 {
-    public class TransformerJva : TransformerJv, ITransformer<CodeModel>
+    public class TransformerJva : TransformerJv, ITransformer<AutoRestCodeModel>
     {
         /// <summary>
         /// A type-specific method for code model tranformation.
@@ -27,11 +47,9 @@ namespace AutoRest.Java.Azure
         /// </summary>
         /// <param name="codeModel"></param>
         /// <returns></returns>
-        public override CodeModel TransformCodeModel(CodeModel codeModel)
+        public override AutoRestCodeModel TransformCodeModel(AutoRestCodeModel codeModel)
         {
-            var settings = Settings.Instance;
-
-            settings.AddCredentials = true;
+            Settings.Instance.AddCredentials = true;
 
             // This extension from general extensions must be run prior to Azure specific extensions.
             SwaggerExtensions.ProcessParameterizedHost(codeModel);
@@ -42,16 +60,16 @@ namespace AutoRest.Java.Azure
             SwaggerExtensions.FlattenMethodParameters(codeModel);
             ParameterGroupExtensionHelper.AddParameterGroups(codeModel);
 
-            foreach (MethodGroup methodGroup in codeModel.Operations)
+            foreach (AutoRestMethodGroup methodGroup in codeModel.Operations)
             {
-                Method[] methods = methodGroup.Methods.ToArray();
+                AutoRestMethod[] methods = methodGroup.Methods.ToArray();
                 methodGroup.ClearMethods();
-                foreach (Method method in methods)
+                foreach (AutoRestMethod method in methods)
                 {
                     methodGroup.Add(method);
                     if (GetExtensionBool(method.Extensions, AzureExtensions.LongRunningExtension))
                     {
-                        Response response = method.Responses.Values.First();
+                        AutoRestResponse response = method.Responses.Values.First();
                         if (!method.Responses.ContainsKey(HttpStatusCode.OK))
                         {
                             method.Responses[HttpStatusCode.OK] = response;
@@ -60,12 +78,12 @@ namespace AutoRest.Java.Azure
                         {
                             method.Responses[HttpStatusCode.Accepted] = response;
                         }
-                        if (method.HttpMethod != HttpMethod.Get && !method.Responses.ContainsKey(HttpStatusCode.NoContent))
+                        if (method.HttpMethod != AutoRestHttpMethod.Get && !method.Responses.ContainsKey(HttpStatusCode.NoContent))
                         {
                             method.Responses[HttpStatusCode.NoContent] = response;
                         }
 
-                        Method m = DependencyInjection.Duplicate(method);
+                        AutoRestMethod m = DependencyInjection.Duplicate(method);
                         var methodName = m.Name.ToPascalCase();
                         method.Name = "begin" + methodName;
                         m.Extensions.Remove(AzureExtensions.LongRunningExtension);
@@ -81,26 +99,27 @@ namespace AutoRest.Java.Azure
 
             AzureExtensions.AddAzureProperties(codeModel);
             AzureExtensions.SetDefaultResponses(codeModel);
-
+            MoveResourceTypeProperties(codeModel);
             AzureExtensions.AddPageableMethod(codeModel);
 
-            IDictionary<IModelType, IModelType> convertedTypes = new Dictionary<IModelType, IModelType>();
+            IDictionary<AutoRestIModelType, AutoRestIModelType> convertedTypes = new Dictionary<AutoRestIModelType, AutoRestIModelType>();
+            var pageClasses = new List<PageDetails>();
 
-            foreach (Method restAPIMethod in codeModel.Methods)
+            foreach (AutoRestMethod autoRestMethod in codeModel.Methods)
             {
                 bool simulateMethodAsPagingOperation = false;
-                MethodGroup methodGroup = restAPIMethod.MethodGroup;
+                AutoRestMethodGroup methodGroup = autoRestMethod.MethodGroup;
                 if (!string.IsNullOrEmpty(methodGroup?.Name?.ToString()))
                 {
                     ServiceMethodType restAPIMethodType = ServiceMethodType.Other;
-                    string methodUrl = methodTypeTrailing.Replace(methodTypeLeading.Replace(restAPIMethod.Url, ""), "");
+                    string methodUrl = methodTypeTrailing.Replace(methodTypeLeading.Replace(autoRestMethod.Url, ""), "");
                     string[] urlSplits = methodUrl.Split('/');
-                    switch (restAPIMethod.HttpMethod)
+                    switch (autoRestMethod.HttpMethod)
                     {
-                        case HttpMethod.Get:
+                        case AutoRestHttpMethod.Get:
                             if ((urlSplits.Length == 5 || urlSplits.Length == 7)
                                 && urlSplits[0].EqualsIgnoreCase("subscriptions")
-                                && MethodHasSequenceType(restAPIMethod.ReturnType.Body, settings))
+                                && MethodHasSequenceType(autoRestMethod.ReturnType.Body, settings))
                             {
                                 if (urlSplits.Length == 5)
                                 {
@@ -124,7 +143,7 @@ namespace AutoRest.Java.Azure
                             }
                             break;
 
-                        case HttpMethod.Delete:
+                        case AutoRestHttpMethod.Delete:
                             if (IsTopLevelResourceUrl(urlSplits))
                             {
                                 restAPIMethodType = ServiceMethodType.Delete;
@@ -133,14 +152,14 @@ namespace AutoRest.Java.Azure
                     }
 
                     simulateMethodAsPagingOperation = (restAPIMethodType == ServiceMethodType.ListByResourceGroup || restAPIMethodType == ServiceMethodType.ListBySubscription) &&
-                        1 == methodGroup.Methods.Count((Method methodGroupMethod) =>
+                        1 == methodGroup.Methods.Count((AutoRestMethod methodGroupMethod) =>
                         {
                             ServiceMethodType methodGroupMethodType = ServiceMethodType.Other;
                             string methodGroupMethodUrl = methodTypeTrailing.Replace(methodTypeLeading.Replace(methodGroupMethod.Url, ""), "");
                             string[] methodGroupUrlSplits = methodGroupMethodUrl.Split('/');
                             switch (methodGroupMethod.HttpMethod)
                             {
-                                case HttpMethod.Get:
+                                case AutoRestHttpMethod.Get:
                                     if ((methodGroupUrlSplits.Length == 5 || methodGroupUrlSplits.Length == 7)
                                     && methodGroupUrlSplits[0].EqualsIgnoreCase("subscriptions")
                                     && MethodHasSequenceType(methodGroupMethod.ReturnType.Body, settings))
@@ -167,7 +186,7 @@ namespace AutoRest.Java.Azure
                                     }
                                     break;
 
-                                case HttpMethod.Delete:
+                                case AutoRestHttpMethod.Delete:
                                     if (IsTopLevelResourceUrl(methodGroupUrlSplits))
                                     {
                                         methodGroupMethodType = ServiceMethodType.Delete;
@@ -178,8 +197,8 @@ namespace AutoRest.Java.Azure
                         });
                 }
 
-                bool methodHasPageableExtensions = restAPIMethod.Extensions.ContainsKey(AzureExtensions.PageableExtension);
-                JContainer methodPageableExtensions = !methodHasPageableExtensions ? null : restAPIMethod.Extensions[AzureExtensions.PageableExtension] as JContainer;
+                bool methodHasPageableExtensions = autoRestMethod.Extensions.ContainsKey(AzureExtensions.PageableExtension);
+                JContainer methodPageableExtensions = !methodHasPageableExtensions ? null : autoRestMethod.Extensions[AzureExtensions.PageableExtension] as JContainer;
                 if (methodPageableExtensions != null || simulateMethodAsPagingOperation)
                 {
                     string nextLinkName = null;
@@ -230,21 +249,21 @@ namespace AutoRest.Java.Azure
                         {
                             if (string.IsNullOrEmpty(pageDetails.NextLinkName))
                             {
-                                restAPIMethod.Extensions[AzureExtensions.PageableExtension] = null;
+                                autoRestMethod.Extensions[AzureExtensions.PageableExtension] = null;
                             }
 
                             bool anyTypeConverted = false;
-                            foreach (HttpStatusCode responseStatus in restAPIMethod.Responses.Where(r => r.Value.Body is CompositeType).Select(s => s.Key).ToArray())
+                            foreach (HttpStatusCode responseStatus in autoRestMethod.Responses.Where(r => r.Value.Body is AutoRestCompositeType).Select(s => s.Key).ToArray())
                             {
                                 anyTypeConverted = true;
-                                CompositeType compositeType = (CompositeType)restAPIMethod.Responses[responseStatus].Body;
-                                SequenceType sequenceType = compositeType.Properties
+                                AutoRestCompositeType compositeType = (AutoRestCompositeType)autoRestMethod.Responses[responseStatus].Body;
+                                AutoRestSequenceType sequenceType = compositeType.Properties
                                     .Select((AutoRestProperty property) =>
                                     {
-                                        IModelType propertyModelType = property.ModelType;
-                                        if (propertyModelType != null && !IsNullable(property) && propertyModelType is PrimaryType propertyModelPrimaryType)
+                                        AutoRestIModelType propertyModelType = property.ModelType;
+                                        if (propertyModelType != null && !property.IsNullable() && propertyModelType is AutoRestPrimaryType propertyModelPrimaryType)
                                         {
-                                            PrimaryType propertyModelNonNullablePrimaryType = DependencyInjection.New<PrimaryType>(propertyModelPrimaryType.KnownPrimaryType);
+                                            AutoRestPrimaryType propertyModelNonNullablePrimaryType = DependencyInjection.New<AutoRestPrimaryType>(propertyModelPrimaryType.KnownPrimaryType);
                                             propertyModelNonNullablePrimaryType.Format = propertyModelPrimaryType.Format;
                                             primaryTypeNotWantNullable.Add(propertyModelNonNullablePrimaryType);
 
@@ -252,41 +271,41 @@ namespace AutoRest.Java.Azure
                                         }
                                         return propertyModelType;
                                     })
-                                    .FirstOrDefault(t => t is SequenceType) as SequenceType;
+                                    .FirstOrDefault(t => t is AutoRestSequenceType) as AutoRestSequenceType;
 
                                 // if the type is a wrapper over page-able response
                                 if (sequenceType != null)
                                 {
-                                    SequenceType pagedResult = DependencyInjection.New<SequenceType>();
+                                    AutoRestSequenceType pagedResult = DependencyInjection.New<AutoRestSequenceType>();
                                     pagedResult.ElementType = sequenceType.ElementType;
                                     SequenceTypeSetPageImplType(pagedResult, pageDetails.ClassName);
 
-                                    convertedTypes[restAPIMethod.Responses[responseStatus].Body] = pagedResult;
-                                    Response resp = DependencyInjection.New<Response>(pagedResult, restAPIMethod.Responses[responseStatus].Headers);
-                                    restAPIMethod.Responses[responseStatus] = resp;
+                                    convertedTypes[autoRestMethod.Responses[responseStatus].Body] = pagedResult;
+                                    AutoRestResponse resp = DependencyInjection.New<AutoRestResponse>(pagedResult, autoRestMethod.Responses[responseStatus].Headers);
+                                    autoRestMethod.Responses[responseStatus] = resp;
                                 }
                             }
 
                             if (!anyTypeConverted && simulateMethodAsPagingOperation)
                             {
-                                foreach (HttpStatusCode responseStatus in restAPIMethod.Responses.Where(r => r.Value.Body is SequenceType).Select(s => s.Key).ToArray())
+                                foreach (HttpStatusCode responseStatus in autoRestMethod.Responses.Where(r => r.Value.Body is AutoRestSequenceType).Select(s => s.Key).ToArray())
                                 {
-                                    SequenceType sequenceType = (SequenceType)restAPIMethod.Responses[responseStatus].Body;
+                                    AutoRestSequenceType sequenceType = (AutoRestSequenceType)autoRestMethod.Responses[responseStatus].Body;
 
-                                    SequenceType pagedResult = DependencyInjection.New<SequenceType>();
+                                    AutoRestSequenceType pagedResult = DependencyInjection.New<AutoRestSequenceType>();
                                     pagedResult.ElementType = sequenceType.ElementType;
                                     SequenceTypeSetPageImplType(pagedResult, pageDetails.ClassName);
 
-                                    convertedTypes[restAPIMethod.Responses[responseStatus].Body] = pagedResult;
-                                    Response resp = DependencyInjection.New<Response>(pagedResult, restAPIMethod.Responses[responseStatus].Headers);
-                                    restAPIMethod.Responses[responseStatus] = resp;
+                                    convertedTypes[autoRestMethod.Responses[responseStatus].Body] = pagedResult;
+                                    AutoRestResponse resp = DependencyInjection.New<AutoRestResponse>(pagedResult, autoRestMethod.Responses[responseStatus].Headers);
+                                    autoRestMethod.Responses[responseStatus] = resp;
                                 }
                             }
 
-                            if (convertedTypes.ContainsKey(restAPIMethod.ReturnType.Body))
+                            if (convertedTypes.ContainsKey(autoRestMethod.ReturnType.Body))
                             {
-                                Response resp = DependencyInjection.New<Response>(convertedTypes[restAPIMethod.ReturnType.Body], restAPIMethod.ReturnType.Headers);
-                                restAPIMethod.ReturnType = resp;
+                                AutoRestResponse resp = DependencyInjection.New<AutoRestResponse>(convertedTypes[autoRestMethod.ReturnType.Body], autoRestMethod.ReturnType.Headers);
+                                autoRestMethod.ReturnType = resp;
                             }
                         }
                     }
@@ -295,9 +314,9 @@ namespace AutoRest.Java.Azure
 
             SwaggerExtensions.RemoveUnreferencedTypes(codeModel,
                 new HashSet<string>(convertedTypes.Keys
-                    .Where(x => x is CompositeType)
-                    .Cast<CompositeType>()
-                    .Select((CompositeType compositeType) =>
+                    .Where(x => x is AutoRestCompositeType)
+                    .Cast<AutoRestCompositeType>()
+                    .Select((AutoRestCompositeType compositeType) =>
                     {
                         string compositeTypeName = compositeType.Name.ToString();
                         if (settings.IsFluent && !string.IsNullOrEmpty(compositeTypeName) && innerModelCompositeType.Contains(compositeType))
@@ -306,6 +325,100 @@ namespace AutoRest.Java.Azure
                         }
                         return compositeTypeName;
                     })));
+
+            return codeModel;
+        }
+
+        private static void MoveResourceTypeProperties(AutoRestCodeModel codeModel)
+        {
+            foreach (AutoRestCompositeType subtype in codeModel.ModelTypes.Where(t => ModelResourceType(t.BaseModelType) != JavaResourceType.None))
+            {
+                var baseType = subtype.BaseModelType as AutoRestCompositeType;
+                JavaResourceType baseResourceType = ModelResourceType(baseType);
+                if (baseResourceType == JavaResourceType.SubResource)
+                {
+                    foreach (var prop in baseType.Properties.Where(p => p.SerializedName != "id"))
+                    {
+                        subtype.Add(prop);
+                    }
+                }
+                else if (baseResourceType == JavaResourceType.ProxyResource)
+                {
+                    foreach (var prop in baseType.Properties.Where(p => p.SerializedName != "id" && p.SerializedName != "name" && p.SerializedName != "type"))
+                    {
+                        subtype.Add(prop);
+                    }
+                    foreach (var prop in baseType.Properties.Where(p => p.SerializedName == "id" || p.SerializedName == "name" || p.SerializedName == "type"))
+                    {
+                        if (!prop.IsReadOnly)
+                        {
+                            subtype.Add(prop);
+                        }
+                    }
+                }
+                else if (baseResourceType == JavaResourceType.Resource)
+                {
+                    foreach (var prop in baseType.Properties.Where(p => p.SerializedName != "id" && p.SerializedName != "name" && p.SerializedName != "type" && p.SerializedName != "location" && p.SerializedName != "tags"))
+                    {
+                        subtype.Add(prop);
+                    }
+                    foreach (var prop in baseType.Properties.Where(p => p.SerializedName == "id" || p.SerializedName == "name" || p.SerializedName == "type"))
+                    {
+                        if (!prop.IsReadOnly)
+                        {
+                            subtype.Add(prop);
+                        }
+                    }
+                    if (!baseType.Properties.First(p => p.SerializedName == "location").IsRequired)
+                    {
+                        skipParentValidationTypes.Add(subtype);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Determines if a model type is a resource base type, and the type of resource it is.
+        /// </summary>
+        /// <param name="type">the Swagger model type</param>
+        /// <returns>the type of the resource, or none if it's not a resource base type</returns>
+        private static JavaResourceType ModelResourceType(AutoRestIModelType type)
+        {
+            if (type is AutoRestCompositeType compositeType)
+            {
+                if (compositeType.Name.RawValue == "SubResource")
+                {
+                    return JavaResourceType.SubResource;
+                }
+                else if (compositeType.Name.RawValue == "TrackedResource")
+                {
+                    return JavaResourceType.Resource;
+                }
+                else if (compositeType.Name.RawValue == "ProxyResource")
+                {
+                    return JavaResourceType.ProxyResource;
+                }
+                else if (compositeType.Name.RawValue == "Resource")
+                {
+                    // Make sure location and tags are present, otherwise should be proxy resource
+                    var locationProperty = compositeType.Properties.Where(p => p.SerializedName == "location").FirstOrDefault();
+                    var tagsProperty = compositeType.Properties.Where(p => p.SerializedName == "tags").FirstOrDefault();
+                    if (locationProperty == null || tagsProperty == null)
+                    {
+                        // Make sure id, name, type are present, otherwise should be sub resource
+                        var idProperty = compositeType.Properties.Where(p => p.SerializedName == "id").FirstOrDefault();
+                        var nameProperty = compositeType.Properties.Where(p => p.SerializedName == "name").FirstOrDefault();
+                        var typeProperty = compositeType.Properties.Where(p => p.SerializedName == "type").FirstOrDefault();
+                        if (idProperty == null || nameProperty == null || typeProperty == null)
+                        {
+                            return JavaResourceType.SubResource;
+                        }
+                        return JavaResourceType.ProxyResource;
+                    }
+                    return JavaResourceType.Resource;
+                }
+            }
+            return JavaResourceType.None;
         }
     }
 }

@@ -31,7 +31,7 @@ namespace AutoRest.Java.Model
         /// <param name="expressionsToValidate">The expressions (parameters and service client properties) that need to be validated in this ClientMethod.</param>
         /// <param name="pagingNextMethodInfo">The information about the next page method if this is a pageable API.</param>
         /// <param name="serviceCallbackParameter">The async ServiceCallback parameter for this method.</param>
-        public ClientMethod(string description, ReturnValue returnValue, string name, IEnumerable<ClientParameter> parameters, bool onlyRequiredParameters, ClientMethodType type, MethodJv restAPIMethod, IEnumerable<string> expressionsToValidate, PagingNextMethodInfo pagingNextMethodInfo, ClientParameter serviceCallbackParameter)
+        public ClientMethod(string description, ReturnValue returnValue, string name, IEnumerable<ClientParameter> parameters, bool onlyRequiredParameters, ClientMethodType type, MethodJv restAPIMethod, IEnumerable<string> expressionsToValidate, PagingNextMethodInfo pagingNextMethodInfo, ClientParameter serviceCallbackParameter, List<string> requiredNullableParameterExpressions)
         {
             Description = description;
             ReturnValue = returnValue;
@@ -43,6 +43,7 @@ namespace AutoRest.Java.Model
             ExpressionsToValidate = expressionsToValidate;
             PagingNextMethodInfo = pagingNextMethodInfo;
             ServiceCallbackParameter = serviceCallbackParameter;
+            RequiredNullableParameterExpressions = requiredNullableParameterExpressions;
         }
 
         /// <summary>
@@ -85,10 +86,14 @@ namespace AutoRest.Java.Model
         /// </summary>
         public IEnumerable<string> ExpressionsToValidate { get; }
 
+        public List<string> RequiredNullableParameterExpressions { get; }
+
         /// <summary>
         /// The AutoRestMethod that this ClientMethod was created from.
         /// </summary>
         public AutoRestMethod AutoRestMethod => RestAPIMethod.AutoRestMethod;
+
+        public string MethodClientReference => AutoRestMethod.Group.IsNullOrEmpty() ? "this" : "this.client";
 
         /// <summary>
         /// Get the comma-separated list of parameter declarations for this ClientMethod.

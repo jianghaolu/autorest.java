@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using AutoRestCompositeType = AutoRest.Core.Model.CompositeType;
 
 namespace AutoRest.Java.Model
 {
@@ -16,6 +17,7 @@ namespace AutoRest.Java.Model
         /// </summary>
         /// <param name="package">The package that this model class belongs to.</param>
         /// <param name="name">The name of this model.</param>
+        /// <param name="autoRestCompositeType">The AutoRest composite type for this model.</param>
         /// <param name="imports">The imports for this model.</param>
         /// <param name="description">The description of this model.</param>
         /// <param name="isPolymorphic">Whether or not this model has model types that derive from it.</param>
@@ -27,10 +29,12 @@ namespace AutoRest.Java.Model
         /// <param name="xmlName">The name that will be used for this model's XML element representation.</param>
         /// <param name="properties">The properties for this model.</param>
         /// <param name="skipParentValidation">The properties for this model.</param>
-        public ClientModel(string package, string name, IEnumerable<string> imports, string description, bool isPolymorphic, string polymorphicDiscriminator, string serializedName, bool needsFlatten, ClientModel parentModel, IEnumerable<ClientModel> derivedModels, string xmlName, IEnumerable<ClientModelProperty> properties, bool skipParentValidation)
+        /// <param name="isInnerModel">Whether this is an inner model.</param>
+        public ClientModel(string package, string name, AutoRestCompositeType autoRestCompositeType, IEnumerable<string> imports, string description, bool isPolymorphic, string polymorphicDiscriminator, string serializedName, bool needsFlatten, ClientModel parentModel, IEnumerable<ClientModel> derivedModels, string xmlName, IEnumerable<ClientModelProperty> properties, bool skipParentValidation, bool isInnerModel)
         {
             Package = package;
             Name = name;
+            AutoRestCompositeType = autoRestCompositeType;
             Imports = imports;
             Description = description;
             IsPolymorphic = isPolymorphic;
@@ -42,17 +46,23 @@ namespace AutoRest.Java.Model
             XmlName = xmlName;
             Properties = properties;
             SkipParentValidation = skipParentValidation;
+            IsInnerModel = isInnerModel;
         }
 
         /// <summary>
         /// The package that this model class belongs to.
         /// </summary>
         public string Package { get; }
-        
+
         /// <summary>
         /// Get the name of this model.
         /// </summary>
         public string Name { get; }
+
+        /// <summary>
+        /// Get the AutoRest composite type for this model.
+        /// </summary>
+        public AutoRestCompositeType AutoRestCompositeType { get; }
 
         /// <summary>
         /// The full name of this model class (package and name).
@@ -113,6 +123,11 @@ namespace AutoRest.Java.Model
         /// Get whether to skip client-side validation for the parent class.
         /// </summary>
         public bool SkipParentValidation { get; }
+
+        /// <summary>
+        /// Get whether this is an inner model.
+        /// </summary>
+        public bool IsInnerModel { get; }
 
         /// <summary>
         /// Add this ServiceModel's imports to the provided ISet of imports.

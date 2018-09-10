@@ -20,6 +20,8 @@ namespace AutoRest.Java.Model
 
         private Func<string, string> DefaultValueExpressionConverter { get; }
 
+        public string Name => throw new NotImplementedException();
+
         public override string ToString()
         {
             return $"{ElementType}[]";
@@ -43,6 +45,11 @@ namespace AutoRest.Java.Model
         public string DefaultValueExpression(string sourceExpression)
         {
             return DefaultValueExpressionConverter(sourceExpression);
+        }
+
+        public bool StructurallyEquals(IModelTypeJv type)
+        {
+            return 
         }
     }
 }

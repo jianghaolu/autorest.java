@@ -16,7 +16,8 @@ namespace AutoRest.Java.Model
         /// </summary>
         /// <param name="description">The description of this parameter.</param>
         /// <param name="autoRestParameter">The AutoRestParameter to create this from.</param>
-        /// <param name="type">The type of this parameter.</param>
+        /// <param name="wireType">The type of this parameter.</param>
+        /// <param name="autoRestMethod">The method using this parameter.</param>
         /// <param name="name">The name of this parameter when it is used as a variable.</param>
         /// <param name="requestParameterLocation">The location within the REST API method's HttpRequest where this parameter will be added.</param>
         /// <param name="requestParameterName">The name of the HttpRequest's parameter to substitute with this parameter's value.</param>
@@ -25,11 +26,13 @@ namespace AutoRest.Java.Model
         /// <param name="isRequired">Whether or not this parameter is required.</param>
         /// <param name="isServiceClientProperty">Whether or not this parameter's value comes from a ServiceClientProperty.</param>
         /// <param name="headerCollectionPrefix">The x-ms-header-collection-prefix extension value.</param>
-        public ParameterJv(string description, Parameter autoRestParameter, IModelTypeJv type, string name, RequestParameterLocation requestParameterLocation, string requestParameterName, bool alreadyEncoded, bool isConstant, bool isRequired, bool isServiceClientProperty, string headerCollectionPrefix)
+        public ParameterJv(string description, Parameter autoRestParameter, IModelType wireType, IModelType clientType, Method autoRestMethod, string name, RequestParameterLocation requestParameterLocation, string requestParameterName, bool alreadyEncoded, bool isConstant, bool isRequired, bool isServiceClientProperty, string headerCollectionPrefix)
         {
             Description = description;
             this.AutoRestParameter = autoRestParameter;
-            Type = type;
+            WireType = wireType;
+            ClientType = clientType;
+            AutoRestMethod = autoRestMethod;
             Name = name;
             RequestParameterLocation = requestParameterLocation;
             RequestParameterName = requestParameterName;
@@ -53,7 +56,17 @@ namespace AutoRest.Java.Model
         /// <summary>
         /// Get the type of this parameter.
         /// </summary>
-        public IModelTypeJv Type { get; }
+        public IModelType WireType { get; }
+
+        /// <summary>
+        /// Get the type of this parameter.
+        /// </summary>
+        public IModelType ClientType { get; }
+
+        /// <summary>
+        /// Get the method using this parameter.
+        /// </summary>
+        public Method AutoRestMethod { get; }
 
         /// <summary>
         /// Get the name of this parameter when it is used as a variable.
@@ -108,17 +121,17 @@ namespace AutoRest.Java.Model
             }
             if (RequestParameterLocation != RequestParameterLocation.Body)
             {
-                if (Type == ArrayType.ByteArray)
+                if (WireType == ArrayType.ByteArray)
                 {
                     imports.Add("com.microsoft.rest.v2.util.Base64Util");
                 }
-                else if (Type is ListType)
+                else if (WireType is ListType)
                 {
                     imports.Add("com.microsoft.rest.v2.CollectionFormat");
                 }
             }
 
-            Type.AddImportsTo(imports, includeImplementationImports);
+            WireType.AddImportsTo(imports, includeImplementationImports);
         }
     }
 }

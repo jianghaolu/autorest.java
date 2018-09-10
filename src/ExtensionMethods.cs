@@ -51,6 +51,11 @@ namespace AutoRest.Java
             return Async(methodName.Value);
         }
 
+        internal static string WithRestResponse(this Fixable<string> methodName)
+        {
+            return WithRestResponse(methodName.Value);
+        }
+
         internal static string Async(this string methodName)
         {
             if (methodName == null)
@@ -63,6 +68,22 @@ namespace AutoRest.Java
             } else
             {
                 return methodName + "Async";
+            }
+        }
+
+        internal static string WithRestResponse(this string methodName)
+        {
+            if (methodName == null)
+            {
+                throw new NullReferenceException("methodName == null");
+            }
+            if (methodName.EndsWith("WithRestResponse"))
+            {
+                return methodName;
+            }
+            else
+            {
+                return methodName + "WithRestResponse";
             }
         }
     }

@@ -10,6 +10,8 @@ namespace AutoRest.Java.Model
     /// </summary>
     public interface IModelTypeJv
     {
+        string Name { get; }
+
         /// <summary>
         /// Convert this IType to an IType that is nullable.
         /// </summary>
@@ -36,5 +38,7 @@ namespace AutoRest.Java.Model
         /// <param name="sourceExpression">The source expression to convert to this type's default value expression.</param>
         /// <returns>This type's default value expression.</returns>
         string DefaultValueExpression(string sourceExpression);
+
+        bool StructurallyEquals(IModelTypeJv type);
     }
 }

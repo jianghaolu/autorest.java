@@ -39,7 +39,7 @@ using AutoRestSequenceType = AutoRest.Core.Model.SequenceType;
 
 namespace AutoRest.Java
 {
-    internal class ModelParser
+    internal class ServiceModelParser
     {
 
         private const string GetByResourceGroup = "GetByResourceGroup";
@@ -57,7 +57,8 @@ namespace AutoRest.Java
         private static readonly Pluralizer pluralizer = new Pluralizer();
         private static readonly IList<string> addInner = new List<string>();
         private static readonly IList<string> removeInner = new List<string>();
-
+        
+        private static readonly ISet<AutoRestCompositeType> innerModelCompositeType = new HashSet<AutoRestCompositeType>();
         private static readonly ISet<AutoRestCompositeType> skipParentValidationTypes = new HashSet<AutoRestCompositeType>();
         private static readonly IDictionary<AutoRestIModelType, string> pageImplTypes = new Dictionary<AutoRestIModelType, string>();
         private static readonly ISet<ListType> pagedListTypes = new HashSet<ListType>();
@@ -70,7 +71,7 @@ namespace AutoRest.Java
 
         public JavaCodeNamer Namer { get; private set; }
 
-        public static Client ParseService(AutoRestCodeModel codeModel, JavaSettings settings)
+        public static ClientLibrary ParseAutoRestModel(AutoRestCodeModel codeModel, JavaSettings settings)
         {
             // List retrieved from
             // http://docs.oracle.com/javase/tutorial/java/nutsandbolts/_keywords.html
@@ -145,27 +146,27 @@ namespace AutoRest.Java
 
                 AzureExtensions.AddAzureProperties(codeModel);
                 AzureExtensions.SetDefaultResponses(codeModel);
-
+                MoveResourceTypeProperties(codeModel);
                 AzureExtensions.AddPageableMethod(codeModel);
 
                 IDictionary<AutoRestIModelType, AutoRestIModelType> convertedTypes = new Dictionary<AutoRestIModelType, AutoRestIModelType>();
                 var pageClasses = new List<PageDetails>();
 
-                foreach (AutoRestMethod restAPIMethod in codeModel.Methods)
+                foreach (AutoRestMethod autoRestMethod in codeModel.Methods)
                 {
                     bool simulateMethodAsPagingOperation = false;
-                    AutoRestMethodGroup methodGroup = restAPIMethod.MethodGroup;
+                    AutoRestMethodGroup methodGroup = autoRestMethod.MethodGroup;
                     if (!string.IsNullOrEmpty(methodGroup?.Name?.ToString()))
                     {
                         ServiceMethodType restAPIMethodType = ServiceMethodType.Other;
-                        string methodUrl = methodTypeTrailing.Replace(methodTypeLeading.Replace(restAPIMethod.Url, ""), "");
+                        string methodUrl = methodTypeTrailing.Replace(methodTypeLeading.Replace(autoRestMethod.Url, ""), "");
                         string[] urlSplits = methodUrl.Split('/');
-                        switch (restAPIMethod.HttpMethod)
+                        switch (autoRestMethod.HttpMethod)
                         {
                             case AutoRestHttpMethod.Get:
                                 if ((urlSplits.Length == 5 || urlSplits.Length == 7)
                                     && urlSplits[0].EqualsIgnoreCase("subscriptions")
-                                    && MethodHasSequenceType(restAPIMethod.ReturnType.Body, settings))
+                                    && MethodHasSequenceType(autoRestMethod.ReturnType.Body, settings))
                                 {
                                     if (urlSplits.Length == 5)
                                     {
@@ -243,8 +244,8 @@ namespace AutoRest.Java
                             });
                     }
 
-                    bool methodHasPageableExtensions = restAPIMethod.Extensions.ContainsKey(AzureExtensions.PageableExtension);
-                    JContainer methodPageableExtensions = !methodHasPageableExtensions ? null : restAPIMethod.Extensions[AzureExtensions.PageableExtension] as JContainer;
+                    bool methodHasPageableExtensions = autoRestMethod.Extensions.ContainsKey(AzureExtensions.PageableExtension);
+                    JContainer methodPageableExtensions = !methodHasPageableExtensions ? null : autoRestMethod.Extensions[AzureExtensions.PageableExtension] as JContainer;
                     if (methodPageableExtensions != null || simulateMethodAsPagingOperation)
                     {
                         string nextLinkName = null;
@@ -295,14 +296,14 @@ namespace AutoRest.Java
                             {
                                 if (string.IsNullOrEmpty(pageDetails.NextLinkName))
                                 {
-                                    restAPIMethod.Extensions[AzureExtensions.PageableExtension] = null;
+                                    autoRestMethod.Extensions[AzureExtensions.PageableExtension] = null;
                                 }
 
                                 bool anyTypeConverted = false;
-                                foreach (HttpStatusCode responseStatus in restAPIMethod.Responses.Where(r => r.Value.Body is AutoRestCompositeType).Select(s => s.Key).ToArray())
+                                foreach (HttpStatusCode responseStatus in autoRestMethod.Responses.Where(r => r.Value.Body is AutoRestCompositeType).Select(s => s.Key).ToArray())
                                 {
                                     anyTypeConverted = true;
-                                    AutoRestCompositeType compositeType = (AutoRestCompositeType)restAPIMethod.Responses[responseStatus].Body;
+                                    AutoRestCompositeType compositeType = (AutoRestCompositeType)autoRestMethod.Responses[responseStatus].Body;
                                     AutoRestSequenceType sequenceType = compositeType.Properties
                                         .Select((AutoRestProperty property) =>
                                         {
@@ -326,32 +327,32 @@ namespace AutoRest.Java
                                         pagedResult.ElementType = sequenceType.ElementType;
                                         SequenceTypeSetPageImplType(pagedResult, pageDetails.ClassName);
 
-                                        convertedTypes[restAPIMethod.Responses[responseStatus].Body] = pagedResult;
-                                        AutoRestResponse resp = DependencyInjection.New<AutoRestResponse>(pagedResult, restAPIMethod.Responses[responseStatus].Headers);
-                                        restAPIMethod.Responses[responseStatus] = resp;
+                                        convertedTypes[autoRestMethod.Responses[responseStatus].Body] = pagedResult;
+                                        AutoRestResponse resp = DependencyInjection.New<AutoRestResponse>(pagedResult, autoRestMethod.Responses[responseStatus].Headers);
+                                        autoRestMethod.Responses[responseStatus] = resp;
                                     }
                                 }
 
                                 if (!anyTypeConverted && simulateMethodAsPagingOperation)
                                 {
-                                    foreach (HttpStatusCode responseStatus in restAPIMethod.Responses.Where(r => r.Value.Body is AutoRestSequenceType).Select(s => s.Key).ToArray())
+                                    foreach (HttpStatusCode responseStatus in autoRestMethod.Responses.Where(r => r.Value.Body is AutoRestSequenceType).Select(s => s.Key).ToArray())
                                     {
-                                        AutoRestSequenceType sequenceType = (AutoRestSequenceType)restAPIMethod.Responses[responseStatus].Body;
+                                        AutoRestSequenceType sequenceType = (AutoRestSequenceType)autoRestMethod.Responses[responseStatus].Body;
 
                                         AutoRestSequenceType pagedResult = DependencyInjection.New<AutoRestSequenceType>();
                                         pagedResult.ElementType = sequenceType.ElementType;
                                         SequenceTypeSetPageImplType(pagedResult, pageDetails.ClassName);
 
-                                        convertedTypes[restAPIMethod.Responses[responseStatus].Body] = pagedResult;
-                                        AutoRestResponse resp = DependencyInjection.New<AutoRestResponse>(pagedResult, restAPIMethod.Responses[responseStatus].Headers);
-                                        restAPIMethod.Responses[responseStatus] = resp;
+                                        convertedTypes[autoRestMethod.Responses[responseStatus].Body] = pagedResult;
+                                        AutoRestResponse resp = DependencyInjection.New<AutoRestResponse>(pagedResult, autoRestMethod.Responses[responseStatus].Headers);
+                                        autoRestMethod.Responses[responseStatus] = resp;
                                     }
                                 }
 
-                                if (convertedTypes.ContainsKey(restAPIMethod.ReturnType.Body))
+                                if (convertedTypes.ContainsKey(autoRestMethod.ReturnType.Body))
                                 {
-                                    AutoRestResponse resp = DependencyInjection.New<AutoRestResponse>(convertedTypes[restAPIMethod.ReturnType.Body], restAPIMethod.ReturnType.Headers);
-                                    restAPIMethod.ReturnType = resp;
+                                    AutoRestResponse resp = DependencyInjection.New<AutoRestResponse>(convertedTypes[autoRestMethod.ReturnType.Body], autoRestMethod.ReturnType.Headers);
+                                    autoRestMethod.ReturnType = resp;
                                 }
                             }
                         }
@@ -403,8 +404,6 @@ namespace AutoRest.Java
                         }
                     }
                 }
-
-                MoveResourceTypeProperties(codeModel);
 
                 // param order (PATH first)
                 foreach (AutoRestMethod method in codeModel.Methods)
@@ -459,7 +458,7 @@ namespace AutoRest.Java
 
             ClientManager manager = ParseManager(serviceClient, codeModel, settings);
 
-            return new Client(serviceClientName, serviceClientDescription, enumTypes, exceptions, xmlSequenceWrappers, responseModels, models, pageClasses, manager, serviceClient);
+            return new ClientLibrary(serviceClientName, serviceClientDescription, enumTypes, exceptions, xmlSequenceWrappers, responseModels, models, pageClasses, manager, serviceClient);
         }
 
 
@@ -531,6 +530,90 @@ namespace AutoRest.Java
             IEnumerable<ClientMethod> clientMethods = ParseClientMethods(restAPI, settings);
 
             return new ClientMethodGroup(className, interfaceName, implementedInterfaces, restAPI, serviceClientTypeName, variableType, variableName, clientMethods);
+        }
+
+        private static ParameterJv ParseParameter(AutoRestParameter autoRestParameter, JavaSettings settings, AutoRestMethod autoRestMethod)
+        {
+            string parameterRequestName = autoRestParameter.SerializedName;
+
+            RequestParameterLocation parameterRequestLocation = ParseParameterRequestLocation(autoRestParameter.Location);
+            if (autoRestMethod.Url.Contains("{" + parameterRequestName + "}"))
+            {
+                parameterRequestLocation = RequestParameterLocation.Path;
+            }
+            else if (autoRestParameter.Extensions.ContainsKey("hostParameter"))
+            {
+                parameterRequestLocation = RequestParameterLocation.Host;
+            }
+
+            string parameterHeaderCollectionPrefix = GetExtensionString(autoRestParameter.Extensions, SwaggerExtensions.HeaderCollectionPrefix);
+
+            AutoRestIModelType autoRestParameterWireType = autoRestParameter.ModelType;
+            IModelTypeJv parameterType = ParseType(autoRestParameter, settings);
+            if (parameterType is ListType && settings.ShouldGenerateXmlSerialization && parameterRequestLocation == RequestParameterLocation.Body)
+            {
+                string parameterTypePackage = settings.GetSubPackage(settings.ImplementationSubpackage);
+                string parameterTypeName = autoRestParameterWireType.XmlName.ToPascalCase() + "Wrapper";
+                parameterType = new ClassType(parameterTypePackage, parameterTypeName, null, null, false);
+            }
+            else if (parameterType == ArrayType.ByteArray)
+            {
+                if (parameterRequestLocation != RequestParameterLocation.Body && parameterRequestLocation != RequestParameterLocation.FormData)
+                {
+                    parameterType = ClassType.String;
+                }
+            }
+            else if (parameterType is ListType && autoRestParameter.Location != AutoRestParameterLocation.Body && autoRestParameter.Location != AutoRestParameterLocation.FormData)
+            {
+                parameterType = ClassType.String;
+            }
+
+            bool parameterIsNullable = autoRestParameter.IsNullable();
+            if (parameterIsNullable)
+            {
+                parameterType = parameterType.AsNullable();
+            }
+
+            string parameterDescription = autoRestParameter.Documentation;
+            if (string.IsNullOrEmpty(parameterDescription))
+            {
+                parameterDescription = $"the {parameterType} value";
+            }
+
+            string parameterVariableName = autoRestParameter.ClientProperty?.Name?.ToString();
+            if (!string.IsNullOrEmpty(parameterVariableName))
+            {
+                CodeNamer codeNamer = CodeNamer.Instance;
+                parameterVariableName = codeNamer.CamelCase(codeNamer.RemoveInvalidCharacters(parameterVariableName));
+            }
+            if (parameterVariableName == null)
+            {
+                if (!autoRestParameter.IsClientProperty)
+                {
+                    parameterVariableName = autoRestParameter.Name;
+                }
+                else
+                {
+                    string caller = (autoRestParameter.Method != null && autoRestParameter.Method.Group.IsNullOrEmpty() ? "this" : "this.client");
+                    string clientPropertyName = autoRestParameter.ClientProperty?.Name?.ToString();
+                    if (!string.IsNullOrEmpty(clientPropertyName))
+                    {
+                        CodeNamer codeNamer = CodeNamer.Instance;
+                        clientPropertyName = codeNamer.CamelCase(codeNamer.RemoveInvalidCharacters(clientPropertyName));
+                    }
+                    parameterVariableName = $"{caller}.{clientPropertyName}()";
+                }
+            }
+
+            bool parameterSkipUrlEncodingExtension = GetExtensionBool(autoRestParameter.Extensions, SwaggerExtensions.SkipUrlEncodingExtension);
+
+            bool parameterIsConstant = autoRestParameter.IsConstant;
+
+            bool parameterIsRequired = autoRestParameter.IsRequired;
+
+            bool parameterIsServiceClientProperty = autoRestParameter.IsClientProperty;
+
+            return new ParameterJv(parameterDescription, autoRestParameter, autoRestParameter.ModelType, ConvertToClientType(autoRestParameter.ModelType), autoRestMethod, parameterVariableName, parameterRequestLocation, parameterRequestName, parameterSkipUrlEncodingExtension, parameterIsConstant, parameterIsRequired, parameterIsServiceClientProperty, parameterHeaderCollectionPrefix);
         }
 
         private static MethodJv ParseRestAPIMethod(AutoRestMethod autoRestMethod, JavaSettings settings)
@@ -818,10 +901,15 @@ namespace AutoRest.Java
             bool isResumable = autoRestMethod.Extensions.ContainsKey("java-resume");
             if (isResumable)
             {
+                var operationDescriptionType = DependencyInjection.New<AutoRestCompositeType>();
+                operationDescriptionType.Name = "OperationDescription";
+                operationDescriptionType.
                 restAPIMethodParameters.Add(new ParameterJv(
                     description: "The OperationDescription object.",
                     autoRestParameter: null,
-                    type: ClassType.OperationDescription,
+                    wireType: DependencyInjection.New<AutoRestCompositeType>(),
+                    clientType: ClassType.OperationDescription,
+                    autoRestMethod: autoRestMethod,
                     name: "operationDescription",
                     requestParameterLocation: RequestParameterLocation.None,
                     requestParameterName: "operationDescription",
@@ -845,7 +933,9 @@ namespace AutoRest.Java
                     restAPIMethodParameters.Add(new ParameterJv(
                         description: "The URL to get the next page of items.",
                         autoRestParameter: nextUrlParameter,
-                        type: ClassType.String,
+                        wireType: ClassType.String,
+                        clientType: ClassType.String,
+                        autoRestMethod: autoRestMethod,
                         name: "nextUrl",
                         requestParameterLocation: RequestParameterLocation.Path,
                         requestParameterName: "nextUrl",
@@ -864,86 +954,8 @@ namespace AutoRest.Java
 
                 foreach (AutoRestParameter autoRestParameter in autoRestRestAPIMethodOrderedParameters)
                 {
-                    string parameterRequestName = autoRestParameter.SerializedName;
-
-                    RequestParameterLocation parameterRequestLocation = ParseParameterRequestLocation(autoRestParameter.Location);
-                    if (autoRestMethod.Url.Contains("{" + parameterRequestName + "}"))
-                    {
-                        parameterRequestLocation = RequestParameterLocation.Path;
-                    }
-                    else if (autoRestParameter.Extensions.ContainsKey("hostParameter"))
-                    {
-                        parameterRequestLocation = RequestParameterLocation.Host;
-                    }
-
-                    string parameterHeaderCollectionPrefix = GetExtensionString(autoRestParameter.Extensions, SwaggerExtensions.HeaderCollectionPrefix);
-
-                    AutoRestIModelType autoRestParameterWireType = autoRestParameter.ModelType;
-                    IModelTypeJv parameterType = ParseType(autoRestParameter, settings);
-                    if (parameterType is ListType && settings.ShouldGenerateXmlSerialization && parameterRequestLocation == RequestParameterLocation.Body)
-                    {
-                        string parameterTypePackage = settings.GetSubPackage(settings.ImplementationSubpackage);
-                        string parameterTypeName = autoRestParameterWireType.XmlName.ToPascalCase() + "Wrapper";
-                        parameterType = new ClassType(parameterTypePackage, parameterTypeName, null, null, false);
-                    }
-                    else if (parameterType == ArrayType.ByteArray)
-                    {
-                        if (parameterRequestLocation != RequestParameterLocation.Body && parameterRequestLocation != RequestParameterLocation.FormData)
-                        {
-                            parameterType = ClassType.String;
-                        }
-                    }
-                    else if (parameterType is ListType && autoRestParameter.Location != AutoRestParameterLocation.Body && autoRestParameter.Location != AutoRestParameterLocation.FormData)
-                    {
-                        parameterType = ClassType.String;
-                    }
-
-                    bool parameterIsNullable = autoRestParameter.IsNullable();
-                    if (parameterIsNullable)
-                    {
-                        parameterType = parameterType.AsNullable();
-                    }
-
-                    string parameterDescription = autoRestParameter.Documentation;
-                    if (string.IsNullOrEmpty(parameterDescription))
-                    {
-                        parameterDescription = $"the {parameterType} value";
-                    }
-
-                    string parameterVariableName = autoRestParameter.ClientProperty?.Name?.ToString();
-                    if (!string.IsNullOrEmpty(parameterVariableName))
-                    {
-                        CodeNamer codeNamer = CodeNamer.Instance;
-                        parameterVariableName = codeNamer.CamelCase(codeNamer.RemoveInvalidCharacters(parameterVariableName));
-                    }
-                    if (parameterVariableName == null)
-                    {
-                        if (!autoRestParameter.IsClientProperty)
-                        {
-                            parameterVariableName = autoRestParameter.Name;
-                        }
-                        else
-                        {
-                            string caller = (autoRestParameter.Method != null && autoRestParameter.Method.Group.IsNullOrEmpty() ? "this" : "this.client");
-                            string clientPropertyName = autoRestParameter.ClientProperty?.Name?.ToString();
-                            if (!string.IsNullOrEmpty(clientPropertyName))
-                            {
-                                CodeNamer codeNamer = CodeNamer.Instance;
-                                clientPropertyName = codeNamer.CamelCase(codeNamer.RemoveInvalidCharacters(clientPropertyName));
-                            }
-                            parameterVariableName = $"{caller}.{clientPropertyName}()";
-                        }
-                    }
-
-                    bool parameterSkipUrlEncodingExtension = GetExtensionBool(autoRestParameter.Extensions, SwaggerExtensions.SkipUrlEncodingExtension);
-
-                    bool parameterIsConstant = autoRestParameter.IsConstant;
-
-                    bool parameterIsRequired = autoRestParameter.IsRequired;
-
-                    bool parameterIsServiceClientProperty = autoRestParameter.IsClientProperty;
-
-                    restAPIMethodParameters.Add(new ParameterJv(parameterDescription, autoRestParameter, parameterType, parameterVariableName, parameterRequestLocation, parameterRequestName, parameterSkipUrlEncodingExtension, parameterIsConstant, parameterIsRequired, parameterIsServiceClientProperty, parameterHeaderCollectionPrefix));
+                    var parameter = ParseParameter(autoRestParameter, settings, autoRestMethod);
+                    restAPIMethodParameters.Add(parameter);
                 }
             }
 
@@ -1015,6 +1027,12 @@ namespace AutoRest.Java
                 }
             }
 
+            var restAPIParameterTransformations = new List<ParameterTransformationJv>();
+            foreach (var autoRestParameterTransformation in autoRestMethod.InputParameterTransformation)
+            {
+                restAPIParameterTransformations.Add(ParseParameterTransformation(autoRestParameterTransformation, autoRestMethod, settings));
+            }
+
             return new MethodJv(
                 restAPIMethodRequestContentType,
                 restAPIMethodReturnType,
@@ -1026,6 +1044,7 @@ namespace AutoRest.Java
                 restAPIMethodName,
                 restAPIMethodReturnTypeAsync,
                 restAPIMethodParameters,
+                restAPIParameterTransformations,
                 restAPIMethodIsPagingOperation,
                 restAPIMethodDescription,
                 restAPIMethodSimulateMethodAsPagingOperation,
@@ -1036,12 +1055,25 @@ namespace AutoRest.Java
                 autoRestRestAPIMethodType);
         }
 
+        private static ParameterTransformationJv ParseParameterTransformation(AutoRestParameterTransformation autoRestTransformation, AutoRestMethod autoRestMethod, JavaSettings settings)
+        {
+            var outputParameter = ParseParameter(autoRestTransformation.OutputParameter, settings, autoRestMethod);
+            var mapping = new List<ParameterMappingJv>();
+            foreach (var autoRestMapping in autoRestTransformation.ParameterMappings)
+            {
+                var inputParameter = ParseParameter(autoRestMapping.InputParameter, settings, autoRestMethod);
+                mapping.Add(new ParameterMappingJv(inputParameter, autoRestMapping.InputParameterProperty, autoRestMapping.OutputParameterProperty));
+            }
+            return new ParameterTransformationJv(outputParameter, mapping);
+        }
+
         private static PagingNextMethodInfo GetPagingNextMethodInfo(MethodJv restAPIMethod, ClientMethodType clientMethodType, IEnumerable<ClientParameter> clientParameters, bool onlyRequiredParameters, JavaSettings settings)
         {
             AutoRestResponse autoRestRestAPIMethodReturnType = restAPIMethod.AutoRestMethod.ReturnType;
             AutoRestIModelType autoRestRestAPIMethodReturnBodyType = autoRestRestAPIMethodReturnType.Body ?? DependencyInjection.New<AutoRestPrimaryType>(AutoRestKnownPrimaryType.None);
 
-            IModelTypeJv restAPIMethodReturnBodyClientType = ConvertToClientType(ModelParser.ParseType(autoRestRestAPIMethodReturnBodyType, settings));
+            IModelTypeJv restAPIMethodReturnBodyWireType = ServiceModelParser.ParseType(autoRestRestAPIMethodReturnBodyType, settings);
+            IModelTypeJv restAPIMethodReturnBodyClientType = ConvertToClientType(restAPIMethodReturnBodyWireType);
 
             IModelTypeJv pageType;
 
@@ -1066,12 +1098,14 @@ namespace AutoRest.Java
             ClientParameter serviceCallbackParameter = new ClientParameter(
                 description: "the async ServiceCallback to handle successful and failed responses.",
                 isFinal: false,
-                type: GenericType.ServiceCallback(restAPIMethodReturnBodyClientType),
+                wireType: GenericType.ServiceCallback(restAPIMethodReturnBodyWireType),
+                clientType: GenericType.ServiceCallback(restAPIMethodReturnBodyClientType),
                 name: "serviceCallback",
                 isRequired: true,
                 // GetClientMethodParameterAnnotations() is provided false for isRequired so
                 // that this parameter won't get marked as NonNull.
-                annotations: settings.GetClientMethodParameterAnnotations(false));
+                annotations: settings.GetClientMethodParameterAnnotations(false),
+                autoRestParameter: null);
 
             AutoRestMethod nextMethod = null;
             string nextMethodInvocation = null;
@@ -1425,7 +1459,7 @@ namespace AutoRest.Java
             {
                 if (!autoRestParameter.IsConstant)
                 {
-                    IModelTypeJv parameterType = ModelParser.ParseType(autoRestParameter, settings);
+                    IModelTypeJv parameterType = ServiceModelParser.ParseType(autoRestParameter, settings);
 
                     if (!(parameterType is PrimitiveType) &&
                         !(parameterType is EnumType) &&
@@ -1480,7 +1514,8 @@ namespace AutoRest.Java
             List<ClientParameter> parameters = new List<ClientParameter>();
             foreach (AutoRestParameter autoRestParameter in autoRestParameters)
             {
-                IModelTypeJv parameterType = ConvertToClientType(ParseType(autoRestParameter, settings));
+                IModelTypeJv wireType = ParseType(autoRestParameter, settings);
+                IModelTypeJv parameterType = ConvertToClientType(wireType);
 
                 string parameterDescription = autoRestParameter.Documentation;
                 if (string.IsNullOrEmpty(parameterDescription))
@@ -1495,10 +1530,12 @@ namespace AutoRest.Java
                 parameters.Add(new ClientParameter(
                     description: parameterDescription,
                     isFinal: parametersAreFinal,
-                    type: parameterType,
+                    wireType: wireType,
+                    clientType: parameterType,
                     name: autoRestParameter.Name,
                     isRequired: parameterIsRequired,
-                    annotations: parameterAnnotations));
+                    annotations: parameterAnnotations,
+                    autoRestParameter: autoRestParameter));
             }
             return parameters;
         }
@@ -1611,28 +1648,34 @@ namespace AutoRest.Java
                 new ClientParameter(
                     description: "the management credentials for Azure",
                     isFinal: false,
-                    type: ClassType.ServiceClientCredentials,
+                    wireType: ClassType.ServiceClientCredentials,
+                    clientType: ClassType.ServiceClientCredentials,
                     name: "credentials",
                     isRequired: true,
-                    annotations: settings.GetClientMethodParameterAnnotations(true)));
+                    annotations: settings.GetClientMethodParameterAnnotations(true),
+                    autoRestParameter: null));
 
             var azureEnvironmentParameter = new Lazy<ClientParameter>(() =>
                 new ClientParameter(
                     description: "The environment that requests will target.",
                     isFinal: false,
-                    type: ClassType.AzureEnvironment,
+                    wireType: ClassType.AzureEnvironment,
+                    clientType: ClassType.AzureEnvironment,
                     name: "azureEnvironment",
                     isRequired: true,
-                    annotations: settings.GetClientMethodParameterAnnotations(true)));
+                    annotations: settings.GetClientMethodParameterAnnotations(true),
+                    autoRestParameter: null));
 
             var httpPipelineParameter = new Lazy<ClientParameter>(() =>
                 new ClientParameter(
                     description: "The HTTP pipeline to send requests through.",
                     isFinal: false,
-                    type: ClassType.HttpPipeline,
+                    wireType: ClassType.HttpPipeline,
+                    clientType: ClassType.HttpPipeline,
                     name: "httpPipeline",
                     isRequired: true,
-                    annotations: settings.GetClientMethodParameterAnnotations(true)));
+                    annotations: settings.GetClientMethodParameterAnnotations(true),
+                    autoRestParameter: null));
 
             List<Constructor> serviceClientConstructors = new List<Constructor>();
             string constructorDescription = $"Initializes an instance of {serviceClientInterfaceName} client.";
@@ -1793,10 +1836,12 @@ namespace AutoRest.Java
                 ClientParameter serviceCallbackParameter = new ClientParameter(
                     description: "the async ServiceCallback to handle successful and failed responses.",
                     isFinal: false,
-                    type: GenericType.ServiceCallback(restAPIMethodReturnBodyClientType),
+                    wireType: GenericType.ServiceCallback(restAPIMethodReturnBodyWireType),
+                    clientType: GenericType.ServiceCallback(restAPIMethodReturnBodyClientType),
                     name: "serviceCallback",
                     isRequired: true,
-                    annotations: settings.GetClientMethodParameterAnnotations(false));
+                    annotations: settings.GetClientMethodParameterAnnotations(false),
+                    autoRestParameter: null);
 
                 GenericType serviceFutureClientReturnType = GenericType.ServiceFuture(restAPIMethodReturnBodyClientType);
                 GenericType serviceFutureWireReturnType = GenericType.ServiceFuture(restAPIMethodReturnBodyWireType);
@@ -1813,6 +1858,45 @@ namespace AutoRest.Java
                     autoRestParameterLists.Insert(0, autoRestRequiredClientMethodParameters);
                 }
 
+                List<string> requiredNullableParameterExpressions = new List<string>();
+                if (restAPIMethod.IsResumable)
+                {
+                    var parameter = restAPIMethod.Parameters.First();
+                    requiredNullableParameterExpressions.Add(parameter.Name);
+                }
+                else
+                {
+                    foreach (AutoRestParameter autoRestParameter in restAPIMethod.AutoRestMethod.Parameters)
+                    {
+                        if (!autoRestParameter.IsConstant && autoRestParameter.IsRequired)
+                        {
+                            IModelTypeJv parameterType = ServiceModelParser.ParseType(autoRestParameter, settings);
+
+                            if (!(parameterType is PrimitiveType))
+                            {
+                                string parameterExpression;
+                                if (!autoRestParameter.IsClientProperty)
+                                {
+                                    parameterExpression = autoRestParameter.Name;
+                                }
+                                else
+                                {
+                                    string caller = (autoRestParameter.Method != null && autoRestParameter.Method.Group.IsNullOrEmpty() ? "this" : "this.client");
+                                    string clientPropertyName = autoRestParameter.ClientProperty?.Name?.ToString();
+                                    if (!string.IsNullOrEmpty(clientPropertyName))
+                                    {
+                                        CodeNamer codeNamer = CodeNamer.Instance;
+                                        clientPropertyName = codeNamer.CamelCase(codeNamer.RemoveInvalidCharacters(clientPropertyName));
+                                    }
+                                    parameterExpression = $"{caller}.{clientPropertyName}()";
+                                }
+
+                                requiredNullableParameterExpressions.Add(parameterExpression);
+                            }
+                        }
+                    }
+                }
+
                 bool addSimpleClientMethods = true;
 
                 if (settings.IsAzureOrFluent)
@@ -1826,9 +1910,11 @@ namespace AutoRest.Java
                             new ClientParameter(
                                 opDefParam.Description,
                                 false,
-                                opDefParam.Type,
+                                ConvertToClientType(opDefParam.WireType),
+                                opDefParam.WireType,
                                 opDefParam.Name, true,
-                                new List<ClassType>()));
+                                new List<ClassType>(),
+                                opDefParam.AutoRestParameter));
                         clientMethods.Add(new ClientMethod(
                             description: restAPIMethod.Description + " (resume watch)",
                             returnValue: new ReturnValue(
@@ -1842,7 +1928,8 @@ namespace AutoRest.Java
                             restAPIMethod: restAPIMethod,
                             expressionsToValidate: expressionsToValidate,
                             pagingNextMethodInfo: GetPagingNextMethodInfo(restAPIMethod, ClientMethodType.Resumable, parameters, true, settings),
-                            serviceCallbackParameter: serviceCallbackParameter));
+                            serviceCallbackParameter: serviceCallbackParameter,
+                            requiredNullableParameterExpressions: requiredNullableParameterExpressions));
 
                         addSimpleClientMethods = false;
                     }
@@ -1869,7 +1956,8 @@ namespace AutoRest.Java
                                 restAPIMethod: restAPIMethod,
                                 expressionsToValidate: expressionsToValidate,
                                 pagingNextMethodInfo: GetPagingNextMethodInfo(restAPIMethod, ClientMethodType.PagingSync, parameters, onlyRequiredParameters, settings),
-                                serviceCallbackParameter: serviceCallbackParameter));
+                                serviceCallbackParameter: serviceCallbackParameter,
+                                requiredNullableParameterExpressions: requiredNullableParameterExpressions));
 
                             clientMethods.Add(new ClientMethod(
                                 description: restAPIMethod.Description,
@@ -1884,7 +1972,8 @@ namespace AutoRest.Java
                                 restAPIMethod: restAPIMethod,
                                 expressionsToValidate: expressionsToValidate,
                                 pagingNextMethodInfo: GetPagingNextMethodInfo(restAPIMethod, ClientMethodType.PagingAsync, parameters, onlyRequiredParameters, settings),
-                                serviceCallbackParameter: serviceCallbackParameter));
+                                serviceCallbackParameter: serviceCallbackParameter,
+                                requiredNullableParameterExpressions: requiredNullableParameterExpressions));
 
                             GenericType singlePageMethodReturnType = GenericType.Single(pageType);
                             GenericType singlePageImplMethodReturnType = GenericType.Single(pageImplType);
@@ -1901,7 +1990,8 @@ namespace AutoRest.Java
                                 restAPIMethod: restAPIMethod,
                                 expressionsToValidate: expressionsToValidate,
                                 pagingNextMethodInfo: GetPagingNextMethodInfo(restAPIMethod, ClientMethodType.PagingAsyncSinglePage, parameters, onlyRequiredParameters, settings),
-                                serviceCallbackParameter: serviceCallbackParameter));
+                                serviceCallbackParameter: serviceCallbackParameter,
+                                requiredNullableParameterExpressions: requiredNullableParameterExpressions));
                         }
 
                         addSimpleClientMethods = false;
@@ -1929,7 +2019,8 @@ namespace AutoRest.Java
                                 restAPIMethod: restAPIMethod,
                                 expressionsToValidate: expressionsToValidate,
                                 pagingNextMethodInfo: GetPagingNextMethodInfo(restAPIMethod, ClientMethodType.SimulatedPagingSync, parameters, onlyRequiredParameters, settings),
-                                serviceCallbackParameter: serviceCallbackParameter));
+                                serviceCallbackParameter: serviceCallbackParameter,
+                                requiredNullableParameterExpressions: requiredNullableParameterExpressions));
 
                             clientMethods.Add(new ClientMethod(
                                 description: restAPIMethod.Description,
@@ -1944,7 +2035,8 @@ namespace AutoRest.Java
                                 restAPIMethod: restAPIMethod,
                                 expressionsToValidate: expressionsToValidate,
                                 pagingNextMethodInfo: GetPagingNextMethodInfo(restAPIMethod, ClientMethodType.SimulatedPagingAsync, parameters, onlyRequiredParameters, settings),
-                                serviceCallbackParameter: serviceCallbackParameter));
+                                serviceCallbackParameter: serviceCallbackParameter,
+                                requiredNullableParameterExpressions: requiredNullableParameterExpressions));
                         }
 
                         addSimpleClientMethods = false;
@@ -1972,7 +2064,8 @@ namespace AutoRest.Java
                                 restAPIMethod: restAPIMethod,
                                 expressionsToValidate: expressionsToValidate,
                                 pagingNextMethodInfo: GetPagingNextMethodInfo(restAPIMethod, ClientMethodType.LongRunningSync, parameters, onlyRequiredParameters, settings),
-                                serviceCallbackParameter: serviceCallbackParameter));
+                                serviceCallbackParameter: serviceCallbackParameter,
+                                requiredNullableParameterExpressions: requiredNullableParameterExpressions));
 
                             clientMethods.Add(new ClientMethod(
                                 description: restAPIMethod.Description,
@@ -1987,7 +2080,8 @@ namespace AutoRest.Java
                                 restAPIMethod: restAPIMethod,
                                 expressionsToValidate: expressionsToValidate,
                                 pagingNextMethodInfo: GetPagingNextMethodInfo(restAPIMethod, ClientMethodType.LongRunningAsyncServiceCallback, parameters, onlyRequiredParameters, settings),
-                                serviceCallbackParameter: serviceCallbackParameter));
+                                serviceCallbackParameter: serviceCallbackParameter,
+                                requiredNullableParameterExpressions: requiredNullableParameterExpressions));
 
                             clientMethods.Add(new ClientMethod(
                                 description: restAPIMethod.Description,
@@ -2002,7 +2096,8 @@ namespace AutoRest.Java
                                 restAPIMethod: restAPIMethod,
                                 expressionsToValidate: expressionsToValidate,
                                 pagingNextMethodInfo: GetPagingNextMethodInfo(restAPIMethod, ClientMethodType.LongRunningAsync, parameters, onlyRequiredParameters, settings),
-                                serviceCallbackParameter: serviceCallbackParameter));
+                                serviceCallbackParameter: serviceCallbackParameter,
+                                requiredNullableParameterExpressions: requiredNullableParameterExpressions));
                         }
 
                         addSimpleClientMethods = false;
@@ -2034,7 +2129,8 @@ namespace AutoRest.Java
                             restAPIMethod: restAPIMethod,
                             expressionsToValidate: expressionsToValidate,
                             pagingNextMethodInfo: GetPagingNextMethodInfo(restAPIMethod, ClientMethodType.SimpleSync, parameters, onlyRequiredParameters, settings),
-                            serviceCallbackParameter: serviceCallbackParameter));
+                            serviceCallbackParameter: serviceCallbackParameter,
+                            requiredNullableParameterExpressions: requiredNullableParameterExpressions));
 
                         clientMethods.Add(new ClientMethod(
                             description: restAPIMethod.Description,
@@ -2049,7 +2145,8 @@ namespace AutoRest.Java
                             restAPIMethod: restAPIMethod,
                             expressionsToValidate: expressionsToValidate,
                             pagingNextMethodInfo: GetPagingNextMethodInfo(restAPIMethod, ClientMethodType.SimpleAsyncServiceCallback, parameters, onlyRequiredParameters, settings),
-                            serviceCallbackParameter: serviceCallbackParameter));
+                            serviceCallbackParameter: serviceCallbackParameter,
+                            requiredNullableParameterExpressions: requiredNullableParameterExpressions));
 
                         clientMethods.Add(new ClientMethod(
                             description: restAPIMethod.Description,
@@ -2057,14 +2154,15 @@ namespace AutoRest.Java
                                 description: $"a Single which performs the network request upon subscription.",
                                 wireType: restAPIMethod.AsyncReturnType,
                                 clientType: ConvertToClientType(restAPIMethod.AsyncReturnType)),
-                            name: GetSimpleAsyncRestResponseMethodName(restAPIMethod),
+                            name: restAPIMethod.Name.WithRestResponse().Async(),
                             parameters: parameters,
                             onlyRequiredParameters: onlyRequiredParameters,
                             type: ClientMethodType.SimpleAsyncRestResponse,
                             restAPIMethod: restAPIMethod,
                             expressionsToValidate: expressionsToValidate,
                             pagingNextMethodInfo: GetPagingNextMethodInfo(restAPIMethod, ClientMethodType.SimpleAsyncRestResponse, parameters, onlyRequiredParameters, settings),
-                            serviceCallbackParameter: serviceCallbackParameter));
+                            serviceCallbackParameter: serviceCallbackParameter,
+                            requiredNullableParameterExpressions: requiredNullableParameterExpressions));
 
                         IModelTypeJv asyncMethodWireReturnType;
                         IModelTypeJv asyncMethodClientReturnType;
@@ -2096,7 +2194,8 @@ namespace AutoRest.Java
                             restAPIMethod: restAPIMethod,
                             expressionsToValidate: expressionsToValidate,
                             pagingNextMethodInfo: GetPagingNextMethodInfo(restAPIMethod, ClientMethodType.SimpleAsync, parameters, onlyRequiredParameters, settings),
-                            serviceCallbackParameter: serviceCallbackParameter));
+                            serviceCallbackParameter: serviceCallbackParameter,
+                            requiredNullableParameterExpressions: requiredNullableParameterExpressions));
                     }
                 }
             }
@@ -2200,7 +2299,7 @@ namespace AutoRest.Java
 
                 bool skipParentValidation = skipParentValidationTypes.Contains(autoRestCompositeType);
 
-                result = new ClientModel(modelPackage, modelName, modelImports, modelDescription, isPolymorphic, polymorphicDiscriminator, modelSerializedName, needsFlatten, parentModel, derivedTypes, modelXmlName, properties, skipParentValidation);
+                result = new ClientModel(modelPackage, modelName, autoRestCompositeType, modelImports, modelDescription, isPolymorphic, polymorphicDiscriminator, modelSerializedName, needsFlatten, parentModel, derivedTypes, modelXmlName, properties, skipParentValidation, innerModelCompositeType.Contains(autoRestCompositeType));
 
                 serviceModels.AddModel(result);
             }
@@ -2319,10 +2418,11 @@ namespace AutoRest.Java
                     new ClientParameter(
                         description: "the management credentials for Azure",
                         isFinal: false,
-                        type: ClassType.AzureTokenCredentials,
+                        wireType: ClassType.AzureTokenCredentials,
+                        clientType: ClassType.AzureTokenCredentials,
                         name: "credentials",
                         isRequired: true,
-                        annotations: settings.GetClientMethodParameterAnnotations(true)));
+                        annotations: settings.GetClientMethodParameterAnnotations(true), null));
 
                 manager = new ClientManager(codeModel.Name, serviceName, azureTokenCredentialsParameter, serviceClient.HttpPipelineParameter);
             }
@@ -2887,6 +2987,94 @@ namespace AutoRest.Java
                 clientType = ArrayType.ByteArray;
             }
             return clientType;
+        }
+
+        private static AutoRestIModelType ConvertToClientType(AutoRestIModelType modelType)
+        {
+            AutoRestIModelType result = modelType;
+
+            if (modelType is AutoRestSequenceType sequenceTypeJv)
+            {
+                AutoRestIModelType elementClientType = ConvertToClientType(sequenceTypeJv.ElementType);
+
+                if (elementClientType != sequenceTypeJv.ElementType)
+                {
+                    bool elementClientPrimaryTypeIsNullable = true;
+                    if (elementClientType is AutoRestPrimaryType elementClientPrimaryType && !PrimaryTypeGetWantNullable(elementClientPrimaryType))
+                    {
+                        switch (elementClientPrimaryType.KnownPrimaryType)
+                        {
+                            case AutoRestKnownPrimaryType.None:
+                            case AutoRestKnownPrimaryType.Boolean:
+                            case AutoRestKnownPrimaryType.Double:
+                            case AutoRestKnownPrimaryType.Int:
+                            case AutoRestKnownPrimaryType.Long:
+                            case AutoRestKnownPrimaryType.UnixTime:
+                                elementClientPrimaryTypeIsNullable = false;
+                                break;
+                        }
+                    }
+
+                    if (elementClientPrimaryTypeIsNullable)
+                    {
+                        AutoRestSequenceType sequenceType = DependencyInjection.New<AutoRestSequenceType>();
+                        sequenceType.ElementType = elementClientType;
+                        result = sequenceType;
+                    }
+                }
+            }
+            else if (modelType is AutoRestDictionaryType dictionaryType)
+            {
+                AutoRestIModelType dictionaryValueClientType = ConvertToClientType(dictionaryType.ValueType);
+
+                if (dictionaryValueClientType != dictionaryType.ValueType)
+                {
+                    bool dictionaryValueClientPrimaryTypeIsNullable = true;
+                    if (dictionaryValueClientType is AutoRestPrimaryType dictionaryValueClientPrimaryType && !PrimaryTypeGetWantNullable(dictionaryValueClientPrimaryType))
+                    {
+                        switch (dictionaryValueClientPrimaryType.KnownPrimaryType)
+                        {
+                            case AutoRestKnownPrimaryType.None:
+                            case AutoRestKnownPrimaryType.Boolean:
+                            case AutoRestKnownPrimaryType.Double:
+                            case AutoRestKnownPrimaryType.Int:
+                            case AutoRestKnownPrimaryType.Long:
+                            case AutoRestKnownPrimaryType.UnixTime:
+                                dictionaryValueClientPrimaryTypeIsNullable = false;
+                                break;
+                        }
+                    }
+
+                    if (dictionaryValueClientPrimaryTypeIsNullable)
+                    {
+                        AutoRestDictionaryType dictionaryTypeResult = DependencyInjection.New<AutoRestDictionaryType>();
+                        dictionaryTypeResult.ValueType = dictionaryValueClientType;
+                        result = dictionaryTypeResult;
+                    }
+                }
+            }
+            else if (modelType is AutoRestPrimaryType primaryType)
+            {
+                if (primaryType.KnownPrimaryType == AutoRestKnownPrimaryType.DateTimeRfc1123 ||
+                    primaryType.KnownPrimaryType == AutoRestKnownPrimaryType.UnixTime)
+                {
+                    result = DependencyInjection.New<AutoRestPrimaryType>(AutoRestKnownPrimaryType.DateTime);
+                }
+                else if (primaryType.KnownPrimaryType == AutoRestKnownPrimaryType.Base64Url)
+                {
+                    result = DependencyInjection.New<AutoRestPrimaryType>(AutoRestKnownPrimaryType.ByteArray);
+                }
+                else if (primaryType.KnownPrimaryType == AutoRestKnownPrimaryType.None)
+                {
+                    AutoRestPrimaryType nonNullableResult = DependencyInjection.New<AutoRestPrimaryType>(primaryType.KnownPrimaryType);
+                    nonNullableResult.Format = primaryType.Format;
+                    primaryTypeNotWantNullable.Add(nonNullableResult);
+
+                    result = nonNullableResult;
+                }
+            }
+
+            return result;
         }
     }
 }

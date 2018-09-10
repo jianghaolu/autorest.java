@@ -8,7 +8,7 @@ namespace AutoRest.Java.Model
     /// <summary>
     /// A container for the types associated for accessing a specific service.
     /// </summary>
-    public class Client
+    public class ClientLibrary
     {
         /// <summary>
         /// Create a new Service with the provided values.
@@ -22,7 +22,7 @@ namespace AutoRest.Java.Model
         /// <param name="pageClasses"></param>
         /// <param name="manager"></param>
         /// <param name="serviceClient"></param>
-        public Client(
+        public ClientLibrary(
             string clientName,
             string clientDescription,
             IEnumerable<EnumType> enums,

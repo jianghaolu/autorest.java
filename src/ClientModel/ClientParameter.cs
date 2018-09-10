@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
+using AutoRest.Core.Model;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -16,18 +17,21 @@ namespace AutoRest.Java.Model
         /// </summary>
         /// <param name="description">The description of this parameter.</param>
         /// <param name="isFinal">Whether or not this parameter is final.</param>
-        /// <param name="type">The type of this parameter.</param>
+        /// <param name="wireType">The wire type of this parameter.</param>
+        /// <param name="clientType">The client type of this parameter.</param>
         /// <param name="name">The name of this parameter.</param>
         /// <param name="isRequired">Whether or not this parameter is required.</param>
         /// <param name="annotations">The annotations that should be part of this Parameter's declaration.</param>
-        public ClientParameter(string description, bool isFinal, IModelTypeJv type, string name, bool isRequired, IEnumerable<ClassType> annotations)
+        public ClientParameter(string description, bool isFinal, IModelTypeJv wireType, IModelTypeJv clientType, string name, bool isRequired, IEnumerable<ClassType> annotations, Parameter autoRestParameter)
         {
             Description = description;
             IsFinal = isFinal;
-            Type = type;
+            WireType = wireType;
+            ClientType = clientType;
             Name = name;
             IsRequired = isRequired;
             Annotations = annotations;
+            AutoRestParameter = autoRestParameter;
         }
 
         /// <summary>
@@ -41,9 +45,14 @@ namespace AutoRest.Java.Model
         public bool IsFinal { get; }
 
         /// <summary>
-        /// The type of this parameter.
+        /// The wire type of this parameter.
         /// </summary>
-        public IModelTypeJv Type { get; }
+        public IModelTypeJv WireType { get; }
+
+        /// <summary>
+        /// The client type of this parameter.
+        /// </summary>
+        public IModelTypeJv ClientType { get; }
 
         /// <summary>
         /// The name of this parameter.
@@ -60,13 +69,15 @@ namespace AutoRest.Java.Model
         /// </summary>
         public IEnumerable<ClassType> Annotations { get; }
 
+        public Parameter AutoRestParameter { get; }
+
         /// <summary>
         /// The full declaration of this parameter as it appears in a method signature.
         /// </summary>
         public string Declaration =>
             string.Join("", Annotations.Select((ClassType annotation) => $"@{annotation.Name} ")) +
             (IsFinal ? "final " : "") +
-            $"{Type} {Name}";
+            $"{ClientType} {Name}";
 
         /// <summary>
         /// Add this parameter's imports to the provided ISet of imports.
@@ -79,7 +90,7 @@ namespace AutoRest.Java.Model
             {
                 annotation.AddImportsTo(imports, includeImplementationImports);
             }
-            Type.AddImportsTo(imports, includeImplementationImports);
+            ClientType.AddImportsTo(imports, includeImplementationImports);
         }
     }
 }

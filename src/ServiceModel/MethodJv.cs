@@ -28,6 +28,7 @@ namespace AutoRest.Java.Model
         /// <param name="name">The name of this REST API method.</param>
         /// <param name="asyncReturnType">The return type of this method with its asynchronous container.</param>
         /// <param name="parameters">The parameters that are provided to this method.</param>
+        /// <param name="parameterTransformations">The parameters transformations.</param>
         /// <param name="isPagingOperation">Whether or not this method is a request to get the first page of a sequence of pages.</param>
         /// <param name="description">The description of this method.</param>
         /// <param name="simulateAsPagingOperation">Whether or not to simulate this method as a paging operation.</param>
@@ -36,7 +37,7 @@ namespace AutoRest.Java.Model
         /// <param name="autoRestMethod">The AutoRestMethod that this RestAPIMethod was created from.</param>
         /// <param name="isResumable">Whether or not this method is resumable.</param>
         /// <param name="serviceMethodType">The type of the Rest API method.</param>
-        public MethodJv(string requestContentType, IModelTypeJv returnType, bool isPagingNextOperation, string httpMethod, string urlPath, IEnumerable<HttpStatusCode> responseExpectedStatusCodes, ClassType unexpectedResponseExceptionType, string name, IModelTypeJv asyncReturnType, IEnumerable<ParameterJv> parameters, bool isPagingOperation, string description, bool simulateAsPagingOperation, bool isLongRunningOperation, IModelTypeJv returnValueWireType, AutoRestMethod autoRestMethod,
+        public MethodJv(string requestContentType, IModelTypeJv returnType, bool isPagingNextOperation, string httpMethod, string urlPath, IEnumerable<HttpStatusCode> responseExpectedStatusCodes, ClassType unexpectedResponseExceptionType, string name, IModelTypeJv asyncReturnType, IEnumerable<ParameterJv> parameters, List<ParameterTransformationJv> parameterTransformations, bool isPagingOperation, string description, bool simulateAsPagingOperation, bool isLongRunningOperation, IModelTypeJv returnValueWireType, AutoRestMethod autoRestMethod,
             bool isResumable, ServiceMethodType serviceMethodType)
         {
             RequestContentType = requestContentType;
@@ -49,6 +50,7 @@ namespace AutoRest.Java.Model
             UnexpectedResponseExceptionType = unexpectedResponseExceptionType;
             Name = name;
             Parameters = parameters;
+            ParameterTransformations = parameterTransformations;
             IsPagingOperation = isPagingOperation;
             Description = description;
             SimulateAsPagingOperation = simulateAsPagingOperation;
@@ -108,6 +110,17 @@ namespace AutoRest.Java.Model
         /// Get the parameters that are provided to this method.
         /// </summary>
         public IEnumerable<ParameterJv> Parameters { get; }
+
+        /// <summary>
+        /// Parameter transformaations.
+        /// </summary>
+        public List<ParameterTransformationJv> ParameterTransformations { get; }
+
+        /// <summary>
+        /// Get the list of logical parameters.
+        /// </summary>
+        public IEnumerable<ParameterJv> LogicalParameters => Parameters.Where(gp => gp.RequestParameterLocation != RequestParameterLocation.None)
+                    .Union(ParameterTransformations.Select(m => m.OutputParameter));
 
         /// <summary>
         /// Get whether or not this method is a request to get the first page of a sequence of pages.

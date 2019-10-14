@@ -63,9 +63,15 @@ namespace AutoRest.Java
                 xmlName = null;
             }
 
+
+            string valueName = property.SerializedName;
+            if (JavaSettings.Instance.ShouldGenerateXmlSerialization && !property.IsHeaderName)
+            {
+                valueName = xmlName;
+            }
             List<string> annotationArgumentList = new List<string>()
             {
-                $"value = \"{(JavaSettings.Instance.ShouldGenerateXmlSerialization ? xmlName : property.SerializedName)}\""
+                $"value = \"{(valueName)}\""
             };
             if (property.IsRequired)
             {

@@ -18,5 +18,18 @@ namespace AutoRest.Java.Model
         public PropertyJv()
             : base()
         {}
+
+        private bool isHeaderName = false;
+        public bool IsHeaderName
+        {
+            get
+            {
+                return isHeaderName;
+            }
+            set
+            {
+                isHeaderName = value;
+            }
+        }
     }
 }

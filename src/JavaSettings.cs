@@ -44,7 +44,8 @@ namespace AutoRest.Java
                         customTypesSubpackage: autoRestSettings.GetStringSetting("custom-types-subpackage", ""),
                         requiredParameterClientMethods: autoRestSettings.GetBoolSetting("required-parameter-client-methods", true),
                         addContextParameter: autoRestSettings.GetBoolSetting("add-context-parameter", false),
-                        syncMethods: autoRestSettings.GetStringSetting("sync-methods", "essential"));
+                        syncMethods: autoRestSettings.GetStringSetting("sync-methods", "essential"),
+                        lowerCaseHeaderNames: autoRestSettings.GetBoolSetting("lowercase-header-names", false));
                 }
                 return _instance;
             }
@@ -96,7 +97,8 @@ namespace AutoRest.Java
             string customTypesSubpackage,
             bool requiredParameterClientMethods,
             bool addContextParameter,
-            string syncMethods)
+            string syncMethods,
+            bool lowerCaseHeaderNames)
         {
             this.setAddCredentials = setAddCredentials;
             IsAzure = isAzure;
@@ -120,6 +122,7 @@ namespace AutoRest.Java
             RequiredParameterClientMethods = requiredParameterClientMethods;
             AddContextParameter = addContextParameter;
             SyncMethods = (SyncMethodsGeneration) Enum.Parse(typeof(SyncMethodsGeneration), syncMethods, true);
+            LowerCaseHeaderNames = lowerCaseHeaderNames;
         }
 
         public bool IsAzure { get; }
@@ -201,6 +204,8 @@ namespace AutoRest.Java
         public bool AddContextParameter { get; }
 
         public SyncMethodsGeneration SyncMethods { get; }
+
+        public bool LowerCaseHeaderNames { get; }
     }
 
     public enum SyncMethodsGeneration

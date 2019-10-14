@@ -39,6 +39,10 @@ namespace AutoRest.Java
             {
                 SwaggerExtensions.NormalizeClientModel(codeModel);
                 ProcessCustomTypeCompositeProperties(codeModel, JavaSettings.Instance);
+                if (JavaSettings.Instance.LowerCaseHeaderNames)
+                {
+                    ConvertHeaderPropertiesToLowerCase(codeModel);
+                }
             }
             else
             {
@@ -370,6 +374,10 @@ namespace AutoRest.Java
                 }
 
                 ProcessCustomTypeCompositeProperties(codeModel, JavaSettings.Instance);
+                if (JavaSettings.Instance.LowerCaseHeaderNames)
+                {
+                    ConvertHeaderPropertiesToLowerCase(codeModel);
+                }
             }
             return codeModel;
         }
@@ -433,6 +441,25 @@ namespace AutoRest.Java
                     if (!customTypes.Contains(t.ClassName))
                     {
                         customTypes.Add(t.ClassName);
+                    }
+                }
+            }
+        }
+
+        private static void ConvertHeaderPropertiesToLowerCase(CodeModelJv codeModel)
+        {
+            var headers = codeModel.Methods.SelectMany(m => m.Responses.Values)
+                .Where(r => r.Headers != null)
+                .Select(r => r.Headers);
+            
+            foreach (var header in headers)
+            {
+                if (header is CompositeTypeJv headerComposite)
+                {
+                    foreach (PropertyJv property in headerComposite.Properties)
+                    {
+                        property.IsHeaderName = true;
+                        property.SerializedName = property.SerializedName.ToLowerInvariant();
                     }
                 }
             }

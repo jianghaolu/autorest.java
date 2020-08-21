@@ -34,7 +34,12 @@ public class Shark extends Fish {
     @JsonProperty(value = "birthday", required = true)
     private OffsetDateTime birthday;
 
-    /** Creates an instance of Shark class. */
+    /**
+     * Creates an instance of Shark class.
+     *
+     * @param length the length value to set.
+     * @param birthday the birthday value to set.
+     */
     @JsonCreator
     public Shark(
             @JsonProperty(value = "length", required = true) float length,
@@ -72,12 +77,6 @@ public class Shark extends Fish {
         return this.birthday;
     }
 
-    /**
-     * Set the birthday property: The birthday property.
-     *
-     * @param birthday the birthday value to set.
-     * @return the Shark object itself.
-     */
     /**
      * Validates the instance.
      *

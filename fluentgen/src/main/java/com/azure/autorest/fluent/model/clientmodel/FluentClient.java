@@ -14,7 +14,11 @@ public class FluentClient {
 
     private final Client client;
 
+    private FluentManager manager;
+
     private final List<FluentResourceModel> resourceModels = new ArrayList<>();
+
+    private final List<FluentResourceCollection> resourceCollections = new ArrayList<>();
 
     public FluentClient(Client client) {
         this.client = client;
@@ -22,5 +26,17 @@ public class FluentClient {
 
     public List<FluentResourceModel> getResourceModels() {
         return resourceModels;
+    }
+
+    public List<FluentResourceCollection> getResourceCollections() {
+        return resourceCollections;
+    }
+
+    public FluentManager getManager() {
+        return manager;
+    }
+
+    public void setManager(FluentManager manager) {
+        this.manager = manager;
     }
 }

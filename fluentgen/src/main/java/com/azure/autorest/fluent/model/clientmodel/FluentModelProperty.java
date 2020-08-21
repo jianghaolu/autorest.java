@@ -5,6 +5,9 @@
 
 package com.azure.autorest.fluent.model.clientmodel;
 
+import com.azure.autorest.fluent.model.clientmodel.implmethod.WrapperMethod;
+import com.azure.autorest.fluent.model.clientmodel.implmethod.WrapperPropertyImplementationMethod;
+import com.azure.autorest.fluent.model.clientmodel.implmethod.WrapperPropertyTypeConversionMethod;
 import com.azure.autorest.fluent.util.FluentUtils;
 import com.azure.autorest.model.clientmodel.ClassType;
 import com.azure.autorest.model.clientmodel.ClientModelProperty;
@@ -14,59 +17,55 @@ import com.azure.autorest.model.clientmodel.MapType;
 import com.azure.autorest.template.prototype.MethodTemplate;
 import com.azure.autorest.util.CodeNamer;
 
-import java.util.HashSet;
 import java.util.Set;
 
 public class FluentModelProperty {
 
-    private final ClientModelProperty clientModelProperty;
+    private final ClientModelProperty modelProperty;
 
-    private final IType clientType;
+    private final IType fluentType;
 
-    private final WrapperTypeConversionMethod wrapperTypeConversionMethod;
+    private final WrapperMethod wrapperMethod;
 
     public FluentModelProperty(ClientModelProperty property) {
-        this.clientModelProperty = property;
-        this.clientType = getWrapperType(property.getClientType());
-        this.wrapperTypeConversionMethod = this.clientType == property.getClientType()
-                ? null : new WrapperTypeConversionMethod(this, this.clientModelProperty);
+        this.modelProperty = property;
+        this.fluentType = getWrapperType(property.getClientType());
+        this.wrapperMethod = this.fluentType == property.getClientType()
+                ? new WrapperPropertyImplementationMethod(this, this.modelProperty)
+                : new WrapperPropertyTypeConversionMethod(this, this.modelProperty);
     }
 
     public String getName() {
-        return clientModelProperty.getName();
+        return modelProperty.getName();
     }
 
     public String getDescription() {
-        return clientModelProperty.getDescription();
+        return modelProperty.getDescription();
     }
 
-    public IType getClientType() {
-        return clientType;
+    public IType getFluentType() {
+        return fluentType;
     }
 
+    // method signature for model property
     public String getMethodSignature() {
-        return String.format("%1$s %2$s()", this.getClientType(), this.getGetterName());
+        return String.format("%1$s %2$s()", this.getFluentType(), this.getGetterName());
     }
 
-    public MethodTemplate getImplementationMethodTemplate() {
-        if (wrapperTypeConversionMethod != null) {
-            return wrapperTypeConversionMethod.getConversionMethodTemplate();
-        } else {
-            Set<String> imports = new HashSet<>();
-            this.getClientType().addImportsTo(imports, false);
+    public void addImportsTo(Set<String> imports, boolean includeImplementationImports) {
+        this.fluentType.addImportsTo(imports, false);
 
-            return MethodTemplate.builder()
-                    .imports(imports)
-                    .methodSignature(this.getMethodSignature())
-                    .method(block -> {
-                        block.methodReturn(String.format("this.inner().%1$s()", this.getGetterName()));
-                    })
-                    .build();
+        if (includeImplementationImports) {
+            this.wrapperMethod.getMethodTemplate().addImportsTo(imports);
         }
     }
 
+    public MethodTemplate getImplementationMethodTemplate() {
+        return wrapperMethod.getMethodTemplate();
+    }
+
     private String getGetterName() {
-        return CodeNamer.getModelNamer().modelPropertyGetterName(clientModelProperty);
+        return CodeNamer.getModelNamer().modelPropertyGetterName(modelProperty);
     }
 
     private static IType getWrapperType(IType clientType) {
@@ -86,5 +85,9 @@ public class FluentModelProperty {
             wrapperType = wrapperElementType == type.getValueType() ? type : new MapType(wrapperElementType);
         }
         return wrapperType;
+    }
+
+    public ClientModelProperty getInnerProperty() {
+        return modelProperty;
     }
 }

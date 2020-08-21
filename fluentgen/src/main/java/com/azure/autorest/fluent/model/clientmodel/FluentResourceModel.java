@@ -6,65 +6,142 @@
 package com.azure.autorest.fluent.model.clientmodel;
 
 import com.azure.autorest.extension.base.plugin.JavaSettings;
+import com.azure.autorest.fluent.model.arm.ModelCategory;
+import com.azure.autorest.fluent.model.clientmodel.fluentmodel.ResourceCreate;
 import com.azure.autorest.fluent.util.FluentUtils;
 import com.azure.autorest.model.clientmodel.ClassType;
 import com.azure.autorest.model.clientmodel.ClientModel;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
+// Fluent resource instance. E.g. StorageAccount.
+// Also include some simple wrapper class.
 public class FluentResourceModel {
 
-    private final ClientModel model;
+    // inner model. E.g. StorageAccountInner.
+    private final ClientModel innerModel;
+    // all parent models of the inner model (property of which need to be put to resource class as well)
+    private final List<ClientModel> parentModels;
 
-    private final ModelType modelType = ModelType.WRAPPER;
+    // class type for interface and implementation
+    private final ClassType interfaceType;
+    private final ClassType implementationType;
 
-    private final ClassType resourceInterfaceClassType;
-    private final ClassType resourceImplementationClassType;
-
+    // resource properties
+    private final Map<String, FluentModelProperty> propertiesMap = new HashMap<>();
     private final List<FluentModelProperty> properties = new ArrayList<>();
 
-    public FluentResourceModel(ClientModel model) {
+    // category of the resource
+    private ModelCategory category = ModelCategory.WRAPPER;
+    private ResourceCreate resourceCreate;
+
+    public FluentResourceModel(ClientModel innerModel, List<ClientModel> parentModels) {
         JavaSettings settings = JavaSettings.getInstance();
 
-        this.model = model;
+        this.innerModel = innerModel;
+        this.parentModels = parentModels;
 
-        resourceInterfaceClassType = FluentUtils.resourceModelInterfaceClassType(model.getName());
-        resourceImplementationClassType = new ClassType.Builder()
+        interfaceType = FluentUtils.resourceModelInterfaceClassType(innerModel.getName());
+        implementationType = new ClassType.Builder()
                 .packageName(settings.getPackage(settings.getImplementationSubpackage()))
-                .name(resourceInterfaceClassType.getName() + ModelNaming.MODEL_IMPL_SUFFIX)
+                .name(interfaceType.getName() + ModelNaming.MODEL_IMPL_SUFFIX)
                 .build();
 
-        this.model.getProperties().forEach(p -> {
-            properties.add(new FluentModelProperty(p));
-        });
-    }
+        List<List<FluentModelProperty>> propertiesFromTypeAndParents = new ArrayList<>();
+        propertiesFromTypeAndParents.add(new ArrayList<>());
+        this.innerModel.getProperties().stream()
+                .map(FluentModelProperty::new)
+                .forEach(p -> {
+                    propertiesMap.putIfAbsent(p.getName(), p);
+                    propertiesFromTypeAndParents.get(propertiesFromTypeAndParents.size() - 1).add(p);
+                });
 
-//    public ModelType getModelType() {
-//        return modelType;
-//    }
+        for (ClientModel parent : parentModels) {
+            propertiesFromTypeAndParents.add(new ArrayList<>());
+
+            parent.getProperties().stream()
+                    .map(FluentModelProperty::new)
+                    .forEach(p -> {
+                        if (propertiesMap.putIfAbsent(p.getName(), p) == null) {
+                            propertiesFromTypeAndParents.get(propertiesFromTypeAndParents.size() - 1).add(p);
+                        }
+                    });
+        }
+
+        Collections.reverse(propertiesFromTypeAndParents);
+        for (List<FluentModelProperty> properties1 : propertiesFromTypeAndParents) {
+            properties.addAll(properties1);
+        }
+    }
 
     public ClientModel getInnerModel() {
-        return model;
+        return innerModel;
     }
 
-    public ClassType getResourceInterfaceClassType() {
-        return resourceInterfaceClassType;
+    public ClassType getInterfaceType() {
+        return interfaceType;
     }
 
-    public ClassType getResourceImplementationClassType() {
-        return resourceImplementationClassType;
+    public ClassType getImplementationType() {
+        return implementationType;
     }
 
-    public List<FluentModelProperty> getProperties() {
+    public boolean hasProperty(String name) {
+        return propertiesMap.containsKey(name);
+    }
+
+    public FluentModelProperty getProperty(String name) {
+        return propertiesMap.get(name);
+    }
+
+    public Collection<FluentModelProperty> getProperties() {
         return properties;
     }
 
     public String getDescription() {
-        return String.format("An immutable client-side representation of %s.", resourceInterfaceClassType.getName());
+        return String.format("An immutable client-side representation of %s.", interfaceType.getName());
     }
 
+    // method signature for inner model
     public String getInnerMethodSignature() {
-        return String.format("%1$s %2$s()", this.getInnerModel().getName(), FluentUtils.getGetterName(ModelNaming.PROPERTY_INNER));
+        return String.format("%1$s %2$s()", this.getInnerModel().getName(), FluentUtils.getGetterName(ModelNaming.METHOD_INNER));
+    }
+
+    public ModelCategory getCategory() {
+        return category;
+    }
+
+    public void setCategory(ModelCategory category) {
+        this.category = category;
+    }
+
+    public ResourceCreate getResourceCreate() {
+        return resourceCreate;
+    }
+
+    public void setResourceCreate(ResourceCreate resourceCreate) {
+        this.resourceCreate = resourceCreate;
+    }
+
+    public void addImportsTo(Set<String> imports, boolean includeImplementationImports) {
+        imports.add(this.getInnerModel().getFullName());
+
+        this.getProperties().forEach(p -> p.addImportsTo(imports, includeImplementationImports));
+
+        if (includeImplementationImports) {
+            interfaceType.addImportsTo(imports, false);
+        }
+
+        if (resourceCreate != null) {
+            resourceCreate.addImportsTo(imports, includeImplementationImports);
+        }
     }
 }

@@ -46,7 +46,9 @@ public class FluentServiceClientTemplate extends ServiceClientTemplate {
                     .build();
 
             MethodTemplate mergeContextMethod = MethodTemplate.builder()
-                    .imports(Arrays.asList(Context.class.getName(), Map.class.getName()))
+                    .imports(Arrays.asList(
+                            Context.class.getName(),
+                            Map.class.getName()))
                     .methodSignature("Context mergeContext(Context context)")
                     .comment(comment -> {
                         comment.description("Merges default client context with provided context.");
@@ -62,31 +64,43 @@ public class FluentServiceClientTemplate extends ServiceClientTemplate {
                     .build();
 
             MethodTemplate getLroResultMethod = MethodTemplate.builder()
-                    .imports(Arrays.asList(PollerFlux.class.getName(), PollResult.class.getName(),
-                            Mono.class.getName(), Flux.class.getName(), Response.class.getName(),
-                            ByteBuffer.class.getName(), Type.class.getName(),
+                    .imports(Arrays.asList(
+                            PollerFlux.class.getName(),
+                            PollResult.class.getName(),
+                            Mono.class.getName(),
+                            Flux.class.getName(),
+                            Response.class.getName(),
+                            ByteBuffer.class.getName(),
+                            Type.class.getName(),
                             PollerFactory.class.getName()))
-                    .methodSignature("<T, U> PollerFlux<PollResult<T>, U> getLroResultAsync(Mono<Response<Flux<ByteBuffer>>> activationResponse, HttpPipeline httpPipeline, Type pollResultType, Type finalResultType)")
+                    .methodSignature("<T, U> PollerFlux<PollResult<T>, U> getLroResult(Mono<Response<Flux<ByteBuffer>>> activationResponse, HttpPipeline httpPipeline, Type pollResultType, Type finalResultType, Context context)")
                     .comment(comment -> {
                         comment.description("Gets long running operation result.");
                         comment.param("activationResponse", "the response of activation operation.");
                         comment.param("httpPipeline", "the http pipeline.");
                         comment.param("pollResultType", "type of poll result.");
                         comment.param("finalResultType", "type of final result.");
+                        comment.param("context", "the context shared by all requests.");
                         comment.param("<T>", "type of poll result.");
                         comment.param("<U>", "type of final result.");
                         comment.methodReturns("poller flux for poll result and final result.");
                     })
                     .method(method -> {
-                        method.methodReturn("PollerFactory.create(serializerAdapter, httpPipeline, pollResultType, finalResultType, defaultPollInterval, activationResponse)");
+                        method.methodReturn("PollerFactory.create(serializerAdapter, httpPipeline, pollResultType, finalResultType, defaultPollInterval, activationResponse, context)");
                     })
                     .build();
 
             MethodTemplate getLroFinalResultOrErrorMethod = MethodTemplate.builder()
-                    .imports(Arrays.asList(PollerFlux.class.getName(), PollResult.class.getName(),
-                            Mono.class.getName(), AsyncPollResponse.class.getName(),
-                            ManagementError.class.getName(), ManagementException.class.getName(),
-                            LongRunningOperationStatus.class.getName(), SerializerEncoding.class.getName(), IOException.class.getName()))
+                    .imports(Arrays.asList(
+                            PollerFlux.class.getName(),
+                            PollResult.class.getName(),
+                            Mono.class.getName(),
+                            AsyncPollResponse.class.getName(),
+                            ManagementError.class.getName(),
+                            ManagementException.class.getName(),
+                            LongRunningOperationStatus.class.getName(),
+                            SerializerEncoding.class.getName(),
+                            IOException.class.getName()))
                     .methodSignature("<T, U> Mono<U> getLroFinalResultOrError(AsyncPollResponse<PollResult<T>, U> response)")
                     .comment(comment -> {
                         comment.description("Gets the final result, or an error, based on last async poll response.");

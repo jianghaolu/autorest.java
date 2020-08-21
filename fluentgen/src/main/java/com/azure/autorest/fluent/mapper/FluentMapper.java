@@ -14,6 +14,9 @@ import com.azure.autorest.extension.base.model.codemodel.Response;
 import com.azure.autorest.extension.base.model.codemodel.Value;
 import com.azure.autorest.fluent.model.FluentType;
 import com.azure.autorest.fluent.model.clientmodel.FluentClient;
+import com.azure.autorest.fluent.model.clientmodel.FluentManager;
+import com.azure.autorest.fluent.model.clientmodel.FluentManagerProperty;
+import com.azure.autorest.fluent.model.clientmodel.FluentStatic;
 import com.azure.autorest.fluent.util.FluentJavaSettings;
 import com.azure.autorest.fluent.util.Utils;
 import com.azure.autorest.mapper.Mappers;
@@ -44,10 +47,34 @@ public class FluentMapper {
     public FluentClient map(CodeModel codeModel, Client client) {
         FluentClient fluentClient = new FluentClient(client);
 
-        fluentClient.getResourceModels().addAll(codeModel.getSchemas().getObjects().stream()
-                .map(o -> FluentResourceModelMapper.getInstance().map(o))
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList()));
+        FluentStatic.setFluentClient(fluentClient);
+
+        // manager, service API
+        fluentClient.setManager(new FluentManager(client, Utils.getJavaName(codeModel)));
+
+        // wrapper for response object, potentially as resource instance
+        fluentClient.getResourceModels().addAll(
+                codeModel.getSchemas().getObjects().stream()
+                        .map(o -> FluentResourceModelMapper.getInstance().map(o))
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList()));
+
+        // resource collection API
+        fluentClient.getResourceCollections().addAll(
+                codeModel.getOperationGroups().stream()
+                        .map(og -> FluentResourceCollectionMapper.getInstance().map(og))
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList()));
+
+        fluentClient.getResourceCollections().forEach(c -> {
+            ResourceParser.resolveResourceCreate(c, fluentClient.getResourceModels(), FluentStatic.getClient().getModels());
+        });
+
+        // set resource collection APIs to service API
+        fluentClient.getManager().getProperties().addAll(
+                fluentClient.getResourceCollections().stream()
+                        .map(FluentManagerProperty::new)
+                        .collect(Collectors.toList()));
 
         return fluentClient;
     }

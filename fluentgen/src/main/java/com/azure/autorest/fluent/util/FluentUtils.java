@@ -7,7 +7,15 @@ package com.azure.autorest.fluent.util;
 
 import com.azure.autorest.extension.base.plugin.JavaSettings;
 import com.azure.autorest.model.clientmodel.ClassType;
+import com.azure.autorest.model.clientmodel.GenericType;
+import com.azure.autorest.model.clientmodel.IType;
+import com.azure.autorest.model.clientmodel.ListType;
+import com.azure.autorest.model.clientmodel.MapType;
 import com.azure.autorest.util.CodeNamer;
+import com.azure.core.http.rest.PagedIterable;
+import com.azure.core.util.CoreUtils;
+
+import java.util.Locale;
 
 public class FluentUtils {
 
@@ -38,5 +46,77 @@ public class FluentUtils {
 
     public static String getGetterName(String propertyName) {
         return CodeNamer.getModelNamer().modelPropertyGetterName(propertyName);
+    }
+
+    public static String getServiceName(String clientName) {
+        JavaSettings settings = JavaSettings.getInstance();
+        String serviceName = settings.getServiceName();
+        if (CoreUtils.isNullOrEmpty(serviceName)) {
+            String packageLastName = settings.getPackage();
+            if (packageLastName.endsWith(".generated")) {
+                packageLastName = packageLastName.substring(0, packageLastName.lastIndexOf("."));
+            }
+            int pos = packageLastName.lastIndexOf(".");
+            if (pos != -1 && pos != packageLastName.length() - 1) {
+                packageLastName = packageLastName.substring(pos + 1);
+            }
+
+            if (clientName != null) {
+                if (clientName.toLowerCase(Locale.ROOT).startsWith(packageLastName.toLowerCase(Locale.ROOT))) {
+                    serviceName = clientName.substring(0, packageLastName.length());
+                } else {
+                    final String keywordManagementClient = "ManagementClient";
+                    if (clientName.endsWith(keywordManagementClient)) {
+                        serviceName = clientName.substring(0, clientName.length() - keywordManagementClient.length());
+                    }
+                }
+            }
+
+            if (CoreUtils.isNullOrEmpty(serviceName)) {
+                serviceName = packageLastName;
+            }
+        }
+        return serviceName;
+    }
+
+    public static IType getFluentWrapperType(IType clientType) {
+        IType wrapperType = clientType;
+        if (clientType instanceof ClassType) {
+            ClassType type = (ClassType) clientType;
+            if (FluentUtils.isInnerClassType(type)) {
+                wrapperType = FluentUtils.resourceModelInterfaceClassType(type);
+            }
+        } else if (clientType instanceof ListType) {
+            ListType type = (ListType) clientType;
+            IType wrapperElementType = getFluentWrapperType(type.getElementType());
+            wrapperType = wrapperElementType == type.getElementType() ? type : new ListType(wrapperElementType);
+        } else if (clientType instanceof MapType) {
+            MapType type = (MapType) clientType;
+            IType wrapperElementType = getFluentWrapperType(type.getValueType());
+            wrapperType = wrapperElementType == type.getValueType() ? type : new MapType(wrapperElementType);
+        } else if (clientType instanceof GenericType) {
+            GenericType type = (GenericType) clientType;
+            if (PagedIterable.class.getSimpleName().equals(type.getName())) {
+                IType wrapperItemType = getFluentWrapperType(type.getTypeArguments()[0]);
+                wrapperType = wrapperItemType == type.getTypeArguments()[0] ? type : GenericType.PagedIterable(wrapperItemType);
+            }
+        }
+        return wrapperType;
+    }
+
+    public static String getSingular(String name) {
+        if (name == null) {
+            return null;
+        }
+
+        if (name.endsWith("ies")) {
+            return name.substring(0, name.length() - 3) + 'y';
+        } else if (name.endsWith("sses")) {
+            return name.substring(0, name.length() - 2);
+        } else if (name.endsWith("s") && !name.endsWith("ss")) {
+            return name.substring(0, name.length() - 1);
+        } else {
+            return name;
+        }
     }
 }

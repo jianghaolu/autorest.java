@@ -99,7 +99,9 @@ public class ModelTemplate implements IJavaTemplate<ClientModel, JavaFile> {
 
         ArrayList<JavaModifier> classModifiers = new ArrayList<JavaModifier>();
         if (!hasDerivedModels && !model.getNeedsFlatten()) {
-            classModifiers.add(JavaModifier.Final);
+            if (!settings.isFluent() || !model.getName().endsWith("Identity")) {    // bug https://github.com/Azure/azure-sdk-for-java/issues/8372
+                classModifiers.add(JavaModifier.Final);
+            }
         }
 
         String classNameWithBaseType = model.getName();
@@ -216,7 +218,7 @@ public class ModelTemplate implements IJavaTemplate<ClientModel, JavaFile> {
                     }
                 });
 
-                if (!property.getIsReadOnly()) {
+                if(!property.getIsReadOnly() && !(settings.isRequiredFieldsAsConstructorArgs() && property.isRequired())) {
                     classBlock.javadocComment(settings.getMaximumJavadocCommentWidth(), (comment) -> {
                         if (property.getDescription() == null || property.getDescription().contains(MISSING_SCHEMA)) {
                             comment.description(String.format("Set the %s property", property.getName()));
@@ -228,36 +230,34 @@ public class ModelTemplate implements IJavaTemplate<ClientModel, JavaFile> {
                         comment.methodReturns(String.format("the %s object itself.", model.getName()));
                     });
 
-                    if(!(settings.isRequiredFieldsAsConstructorArgs() && property.isRequired())) {
-                        classBlock.publicMethod(String.format("%s %s(%s %s)",
-                            model.getName(), property.getSetterName(), propertyClientType, property.getName()),
-                            (methodBlock) -> {
-                                String expression;
-                                if (propertyClientType.equals(ArrayType.ByteArray)) {
-                                    expression = String.format("CoreUtils.clone(%s)", property.getName());
+                    classBlock.publicMethod(String.format("%s %s(%s %s)",
+                        model.getName(), property.getSetterName(), propertyClientType, property.getName()),
+                        (methodBlock) -> {
+                            String expression;
+                            if (propertyClientType.equals(ArrayType.ByteArray)) {
+                                expression = String.format("CoreUtils.clone(%s)", property.getName());
+                            } else {
+                                expression = property.getName();
+                            }
+                            if (propertyClientType != propertyType) {
+                                methodBlock.ifBlock(String.format("%s == null", property.getName()),
+                                    (ifBlock) -> ifBlock.line("this.%s = null;", property.getName()))
+                                    .elseBlock((elseBlock) -> {
+                                        String sourceTypeName = propertyClientType.toString();
+                                        String targetTypeName = propertyType.toString();
+                                        String propertyConversion = propertyType.convertFromClientType(expression);
+                                        elseBlock.line("this.%s = %s;", property.getName(), propertyConversion);
+                                    });
+                            } else {
+                                if (settings.shouldGenerateXmlSerialization() && property.getIsXmlWrapper()) {
+                                    methodBlock.line("this.%s = new %s(%s);", property.getName(),
+                                        propertyXmlWrapperClassName.apply(property), expression);
                                 } else {
-                                    expression = property.getName();
+                                    methodBlock.line("this.%s = %s;", property.getName(), expression);
                                 }
-                                if (propertyClientType != propertyType) {
-                                    methodBlock.ifBlock(String.format("%s == null", property.getName()),
-                                        (ifBlock) -> ifBlock.line("this.%s = null;", property.getName()))
-                                        .elseBlock((elseBlock) -> {
-                                            String sourceTypeName = propertyClientType.toString();
-                                            String targetTypeName = propertyType.toString();
-                                            String propertyConversion = propertyType.convertFromClientType(expression);
-                                            elseBlock.line("this.%s = %s;", property.getName(), propertyConversion);
-                                        });
-                                } else {
-                                    if (settings.shouldGenerateXmlSerialization() && property.getIsXmlWrapper()) {
-                                        methodBlock.line("this.%s = new %s(%s);", property.getName(),
-                                            propertyXmlWrapperClassName.apply(property), expression);
-                                    } else {
-                                        methodBlock.line("this.%s = %s;", property.getName(), expression);
-                                    }
-                                }
-                                methodBlock.methodReturn("this");
-                            });
-                    }
+                            }
+                            methodBlock.methodReturn("this");
+                        });
                 }
 
                 if (property.isAdditionalProperties()) {
@@ -295,10 +295,6 @@ public class ModelTemplate implements IJavaTemplate<ClientModel, JavaFile> {
         if (settings.isRequiredFieldsAsConstructorArgs() && (!requiredProperties.isEmpty() || !requiredParentProperties
             .isEmpty())) {
 
-            classBlock.javadocComment(settings.getMaximumJavadocCommentWidth(), (comment) ->
-            {
-                comment.description(String.format("Creates an instance of %1$s class.", model.getName()));
-            });
 
             String requiredCtorArgs = requiredProperties.stream()
                 .map(property -> String.format("@JsonProperty(%1$s )%2$s %3$s", property.getAnnotationArguments(),
@@ -319,6 +315,18 @@ public class ModelTemplate implements IJavaTemplate<ClientModel, JavaFile> {
                 ctorArgs.append(", ");
             }
             ctorArgs.append(requiredCtorArgs);
+
+
+            classBlock.javadocComment(settings.getMaximumJavadocCommentWidth(), (comment) ->
+            {
+                comment.description(String.format("Creates an instance of %1$s class.", model.getName()));
+
+                requiredParentProperties.stream().forEach(property -> comment
+                        .param(property.getName(), String.format("the %s value to set", property.getName())));
+                requiredProperties.stream().forEach(property -> comment
+                        .param(property.getName(), String.format("the %s value to set", property.getName())));
+            });
+
 
             classBlock.annotation("JsonCreator");
             classBlock.publicConstructor(String.format("%1$s(%2$s)", model.getName(), ctorArgs.toString()), (constructor) ->

@@ -54,6 +54,7 @@
     <module>./extension-base</module>
     <module>./fluentgen</module>
     <module>./fluentnamer</module>
+    <module>./jar-collector</module>
   </modules>
 
   <profiles>

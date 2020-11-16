@@ -4,8 +4,8 @@
   "description": "The Java extension for preprocessor in AutoRest.",
   "scripts": {
     "autorest": "autorest",
-    "start": "java -jar target/preprocessor-jar-with-dependencies.jar",
-    "debug": "java -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,quiet=y,address=5005 -jar target/preprocessor-jar-with-dependencies.jar",
+    "start": "java -Dlogback.configurationFile=src/main/resources/logback.xml -cp \"../jar-collector/target/classpath/*\" com.azure.autorest.preprocessor.Main",
+    "debug": "java -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,quiet=y,address=5005 -cp \"../jar-collector/target/classpath/*\" com.azure.autorest.preprocessor.Main",
     "build": "mvn package -Dlocal"
   },
   "repository": {

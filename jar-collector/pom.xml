@@ -12,7 +12,7 @@
   </parent>
 
   <groupId>com.azure</groupId>
-  <artifactId>postprocessor</artifactId>
+  <artifactId>jar-collector</artifactId>
   <version>1.0.0-beta.1</version>
 
   <repositories>
@@ -23,13 +23,6 @@
   </repositories>
 
   <dependencies>
-    <!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-databind -->
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-      <version>2.10.2</version>
-    </dependency>
-
     <dependency>
       <groupId>com.azure</groupId>
       <artifactId>extension-base</artifactId>
@@ -41,38 +34,43 @@
       <version>1.0.0-beta.1</version>
     </dependency>
     <dependency>
-      <groupId>ch.qos.logback</groupId>
-      <artifactId>logback-classic</artifactId>
-      <version>1.2.3</version>
-    </dependency>
-    <dependency>
-      <groupId>com.google.googlejavaformat</groupId>
-      <artifactId>google-java-format</artifactId>
+      <groupId>com.azure</groupId>
+      <artifactId>preprocessor</artifactId>
       <version>1.0.0-beta.1</version>
     </dependency>
     <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.13.1</version>
-      <scope>test</scope>
+      <groupId>com.azure</groupId>
+      <artifactId>javagen</artifactId>
+      <version>1.0.0-beta.1</version>
+    </dependency>
+    <dependency>
+      <groupId>com.azure</groupId>
+      <artifactId>postprocessor</artifactId>
+      <version>1.0.0-beta.1</version>
     </dependency>
   </dependencies>
 
   <build>
     <plugins>
       <plugin>
-        <!-- Build an executable JAR -->
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <version>3.1.0</version>
-        <configuration>
-          <archive>
-            <manifest>
-              <addClasspath>false</addClasspath>
-              <mainClass>com.azure.autorest.postprocessor.Main</mainClass>
-            </manifest>
-          </archive>
-        </configuration>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>copy-dependencies</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>target/classpath</outputDirectory>
+              <overWriteIfNewer>true</overWriteIfNewer>
+              <excludeGroupIds>
+                junit,org.hamcrest,org.mockito,org.powermock
+              </excludeGroupIds>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

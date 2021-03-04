@@ -96,7 +96,7 @@ public class CustomProxyParameterMapper implements IMapper<Parameter, ProxyMetho
             builder.alreadyEncoded(parameter.getExtensions().isXmsSkipUrlEncoding());
         }
 
-        if (parameter.getSchema() instanceof ConstantSchema){
+        if (parameter.getSchema() instanceof ConstantSchema && parameter.isRequired()){
             builder.isConstant(true);
             Object objValue = ((ConstantSchema) parameter.getSchema()).getValue().getValue();
             builder.defaultValue(objValue == null ? null : String.valueOf(objValue));

@@ -140,7 +140,7 @@ public class ClientMethodMapper implements IMapper<Operation, List<ClientMethod>
                     parameters.add(clientMethodParameter);
                 }
 
-                if (!(parameter.getSchema() instanceof ConstantSchema) && parameter.getGroupedBy() == null) {
+                if (!(parameter.getSchema() instanceof ConstantSchema && parameter.isRequired()) && parameter.getGroupedBy() == null) {
                     if (parameter.getImplementation() != Parameter.ImplementationLocation.CLIENT) {
                         // Validations
                         if (clientMethodParameter.getIsRequired() && !(clientMethodParameter.getClientType() instanceof PrimitiveType)) {
@@ -167,7 +167,7 @@ public class ClientMethodMapper implements IMapper<Operation, List<ClientMethod>
 
                 // Transformations
                 if ((parameter.getOriginalParameter() != null || parameter.getGroupedBy() != null)
-                        && !(parameter.getSchema() instanceof ConstantSchema)) {
+                        && !(parameter.getSchema() instanceof ConstantSchema && parameter.isRequired())) {
                     ClientMethodParameter outParameter;
                     if (parameter.getOriginalParameter() != null) {
                         outParameter = Mappers.getClientParameterMapper().map(parameter.getOriginalParameter());

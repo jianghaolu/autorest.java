@@ -127,7 +127,7 @@ public class ModelPropertyMapper implements IMapper<Property, ClientModelPropert
             }
         }
 
-        if (property.getSchema() instanceof ConstantSchema) {
+        if (property.getSchema() instanceof ConstantSchema && property.isRequired()) {
             Object objValue = ((ConstantSchema) property.getSchema()).getValue().getValue();
             builder.isConstant(true);
             builder.defaultValue(objValue == null ? null : propertyClientType.defaultValueExpression(String.valueOf(objValue)));

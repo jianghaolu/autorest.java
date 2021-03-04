@@ -45,7 +45,7 @@ public class ClientParameterMapper implements IMapper<Parameter, ClientMethodPar
 
         boolean isConstant = false;
         String defaultValue = null;
-        if (parameter.getSchema() instanceof ConstantSchema) {
+        if (parameter.getSchema() instanceof ConstantSchema && parameter.isRequired()) {
             isConstant = true;
             Object objValue = ((ConstantSchema) parameter.getSchema()).getValue().getValue();
             defaultValue = objValue == null ? null : String.valueOf(objValue);

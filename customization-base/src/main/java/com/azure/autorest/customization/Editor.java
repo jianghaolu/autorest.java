@@ -12,8 +12,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Scanner;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -44,9 +46,31 @@ public final class Editor {
         this.paths = new HashMap<>();
         this.rootDir = rootDir;
         for (Map.Entry<String, String> content : contents.entrySet()) {
-            addFile(content.getKey(), content.getValue());
+            addNewFile(content.getKey(), content.getValue());
         }
+    }
 
+    public Editor(Path rootDir) {
+        this.contents = new HashMap<>();
+        this.lines = new HashMap<>();
+        this.paths = new HashMap<>();
+        this.rootDir = rootDir;
+
+        Queue<File> files = new LinkedList<>();
+        files.add(rootDir.toFile());
+
+        while (!files.isEmpty()) {
+            File file = files.poll();
+            if (file.isDirectory()) {
+                for (File item : file.listFiles()) {
+                    if (rootDir.relativize(item.toPath()).startsWith("src")) {
+                        files.add(item);
+                    }
+                }
+            } else {
+                addExistingFile(rootDir.relativize(file.toPath()).toString());
+            }
+        }
     }
 
     /**
@@ -58,13 +82,29 @@ public final class Editor {
         return contents;
     }
 
+    public void addExistingFile(String name) {
+        Path filePath = Paths.get(rootDir.toString(), name);
+        File file = filePath.toFile();
+        if (file.exists()) {
+            try {
+                List<String> lineContent = Files.readAllLines(filePath);
+                String content = joinLinesIntoContent(lineContent);
+                contents.put(name, content);
+                lines.put(name, lineContent);
+                paths.put(name, filePath);
+            } catch (IOException e) {
+                throw new RuntimeException();
+            }
+        }
+    }
+
     /**
      * Adds a new file.
      *
      * @param name the relative path of the file, starting with "src/main/java"
      * @param content the file content
      */
-    public void addFile(String name, String content) {
+    public void addNewFile(String name, String content) {
         Path newFilePath = Paths.get(rootDir.toString(), name);
         File newFile = newFilePath.toFile();
         if (!newFile.getParentFile().exists()) {

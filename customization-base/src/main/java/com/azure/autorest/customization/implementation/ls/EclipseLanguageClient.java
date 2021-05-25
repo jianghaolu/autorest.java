@@ -65,6 +65,7 @@ public class EclipseLanguageClient {
     private final AtomicReference<Socket> clientSocket = new AtomicReference<>();
     private final URI workspaceDir;
     private ServerCapabilities serverCapabilities;
+    private boolean initialized = false;
 
     public EclipseLanguageClient(String workspaceDir) {
         this.workspaceDir = new File(workspaceDir).toURI();
@@ -83,6 +84,11 @@ public class EclipseLanguageClient {
             this.server = new EclipseLanguageServerFacade(workspaceDir, port);
             thread.join(10000);
             connection = new Connection(clientSocket.get().getOutputStream(), clientSocket.get().getInputStream());
+            connection.setListener(s -> {
+                if (s.contains("\"message\":\"Ready\"")) {
+                    initialized = true;
+                }
+            });
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -125,11 +131,14 @@ public class EclipseLanguageClient {
         InitializeResponse response = connection.requestWithObject(OBJECT_MAPPER.constructType(InitializeResponse.class), "initialize", initializeParams);
         serverCapabilities = response.getCapabilities();
         connection.notifyWithObject("initialized", null);
-        try {
-            Thread.sleep(10000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+        while (!initialized) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
+        connection.setListener(null); // no longer needed
     }
 
     public BuildWorkspaceStatus buildWorkspace(boolean forceRebuild) {

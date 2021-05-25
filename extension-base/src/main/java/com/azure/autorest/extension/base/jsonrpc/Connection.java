@@ -11,10 +11,21 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -28,12 +39,17 @@ public class Connection {
     private ObjectMapper mapper = new ObjectMapper();
     private ExecutorService executorService = Executors.newCachedThreadPool();
     private CompletableFuture<Void> _loop;
+    private Consumer<String> listener;
 
     public Connection(OutputStream writer, InputStream input) {
         this.writer = writer;
         this.reader = new PeekingBinaryReader(input);
         this._loop = CompletableFuture.runAsync(this::listen);
         this.requestId = new AtomicInteger(0);
+    }
+
+    public void setListener(Consumer<String> listener) {
+        this.listener = listener;
     }
 
     private boolean isAlive = true;
@@ -244,7 +260,9 @@ public class Connection {
 
     public void process(JsonNode content)
     {
-//        System.err.println("JSON RPC receive: " + content.toString());
+        if (listener != null) {
+            listener.accept(content.toString());
+        }
         if (content instanceof ObjectNode)
         {
             executorService.submit(() -> {

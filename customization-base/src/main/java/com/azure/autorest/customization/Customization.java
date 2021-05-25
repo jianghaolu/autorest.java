@@ -4,11 +4,13 @@ import com.azure.autorest.customization.implementation.Utils;
 import com.azure.autorest.customization.implementation.ls.EclipseLanguageClient;
 import org.slf4j.Logger;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 
 /**
@@ -31,7 +33,7 @@ public abstract class Customization {
             InputStream pomStream = Customization.class.getResourceAsStream("/pom.xml");
             byte[] buffer = new byte[pomStream.available()];
             pomStream.read(buffer);
-            editor.addFile("pom.xml", new String(buffer, StandardCharsets.UTF_8));
+            editor.addNewFile("pom.xml", new String(buffer, StandardCharsets.UTF_8));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -48,6 +50,43 @@ public abstract class Customization {
             throw new RuntimeException(e);
         } finally {
             Utils.deleteDirectory(tempDirWithPrefix.toFile());
+            if (languageClient != null) {
+                languageClient.exit();
+            }
+        }
+    }
+
+    public final void run(String directory, Logger logger) {
+        // Populate editor
+        Editor editor;
+        File pomFile = Paths.get(directory, "pom.xml").toFile();
+        boolean pomFileExists = pomFile.exists();
+        try {
+            editor = new Editor(Paths.get(directory));
+            if (pomFileExists) {
+                editor.addExistingFile("pom.xml");
+            } else {
+                InputStream pomStream = Customization.class.getResourceAsStream("/pom.xml");
+                byte[] buffer = new byte[pomStream.available()];
+                pomStream.read(buffer);
+                editor.addNewFile("pom.xml", new String(buffer, StandardCharsets.UTF_8));
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        // Start language client
+        EclipseLanguageClient languageClient = null;
+        try {
+            languageClient = new EclipseLanguageClient(directory);
+            languageClient.initialize();
+            customize(new LibraryCustomization(editor, languageClient), logger);
+            if (!pomFileExists) {
+                editor.removeFile("pom.xml");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
             if (languageClient != null) {
                 languageClient.exit();
             }

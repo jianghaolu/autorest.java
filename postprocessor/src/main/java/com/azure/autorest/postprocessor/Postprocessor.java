@@ -30,7 +30,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,8 +52,8 @@ public class Postprocessor extends NewPlugin {
     String className = JavaSettings.getInstance().getCustomizationClass();
     String readme = null;
     try {
-      readme = new String(Files.readAllBytes(Paths.get(new URI(getReadme()))));
-    } catch (IOException | URISyntaxException e) {
+      readme = new String(Files.readAllBytes(Paths.get(getReadme())));
+    } catch (IOException e) {
       return false;
     }
 
@@ -108,17 +107,19 @@ public class Postprocessor extends NewPlugin {
         customizationClass = loadCustomizationClassFromReadme(className, readme);
       }
 
+      //Step 2: Customization
       try {
         Customization customization = customizationClass.getConstructor().newInstance();
         logger.info("Running customization, this may take a while...");
-        fileContents = customization.run(fileContents, logger);
+        customization.run(fileContents, logger);
       } catch (Exception e) {
         logger.error("Unable to complete customization", e);
         return false;
       }
 
-      //Step 2: Print to files
+      //Step 3: Print to files
       writeToFiles(fileContents);
+
     } catch (Exception e) {
       logger.error("Failed to complete postprocessing.", e);
       return false;
@@ -130,21 +131,37 @@ public class Postprocessor extends NewPlugin {
     Formatter formatter = new Formatter();
     for (Map.Entry<String, String> javaFile : fileContents.entrySet()) {
       String formattedSource = javaFile.getValue();
-      if (javaFile.getKey().endsWith(".java")) {
-        try {
-          formattedSource = formatter.formatSourceAndFixImports(formattedSource);
-        } catch (Exception e) {
-          logger.error("Unable to format output file " + javaFile.getKey(), e);
-          throw e;
-        }
-      }
+//      if (javaFile.getKey().endsWith(".java")) {
+//        try {
+//          formattedSource = formatter.formatSourceAndFixImports(formattedSource);
+//        } catch (Exception e) {
+//          logger.error("Unable to format output file " + javaFile.getKey(), e);
+//          throw e;
+//        }
+//      }
       writeFile(javaFile.getKey(), formattedSource, null);
     }
   }
 
   private String getReadme() {
     List<String> configurationFiles = getValue(List.class, "configurationFiles");
-    return configurationFiles.stream().filter(key -> !key.contains(".autorest")).findFirst().orElse(null);
+    String readme = configurationFiles.stream().filter(key -> !key.contains(".autorest")).findFirst().orElse(null);
+    try {
+      return new URI(readme).getPath();
+    } catch (URISyntaxException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private String getOutputFolder() {
+    String outputFolder = getValue(String.class, "output-folder");
+    outputFolder = outputFolder.replace("\\", "");
+    String readme = getReadme();
+    if (readme == null) {
+      return outputFolder;
+    } else {
+      return Paths.get(readme).getParent().resolve(outputFolder).normalize().toString();
+    }
   }
 
   private String getBaseDirectory() {
@@ -191,6 +208,40 @@ public class Postprocessor extends NewPlugin {
     }
   }
 
+  private Map<String, String> format(Map<String, String> files) {
+    Path tempDirWithPrefix;
+
+    // Populate editor
+    Editor editor;
+    try {
+      tempDirWithPrefix = Files.createTempDirectory("temp");
+      editor = new Editor(files, tempDirWithPrefix);
+      InputStream pomStream = Customization.class.getResourceAsStream("/pom.xml");
+      byte[] buffer = new byte[pomStream.available()];
+      pomStream.read(buffer);
+      editor.addNewFile("pom.xml", new String(buffer, StandardCharsets.UTF_8));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    // Start language client
+    EclipseLanguageClient languageClient = null;
+    try {
+      languageClient = new EclipseLanguageClient(tempDirWithPrefix.toString());
+      languageClient.initialize();
+      languageClient.s
+      editor.removeFile("pom.xml");
+      return editor.getContents();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    } finally {
+      Utils.deleteDirectory(tempDirWithPrefix.toFile());
+      if (languageClient != null) {
+        languageClient.exit();
+      }
+    }
+  }
+
   @SuppressWarnings("unchecked")
   private Class<? extends Customization> loadCustomizationClass(String className, String fileName, String code) {
     Path tempDirWithPrefix;
@@ -203,8 +254,8 @@ public class Postprocessor extends NewPlugin {
       InputStream pomStream = Postprocessor.class.getResourceAsStream("/readme/pom.xml");
       byte[] buffer = new byte[pomStream.available()];
       pomStream.read(buffer);
-      editor.addFile("pom.xml", new String(buffer, StandardCharsets.UTF_8));
-      editor.addFile(fileName, code);
+      editor.addNewFile("pom.xml", new String(buffer, StandardCharsets.UTF_8));
+      editor.addNewFile(fileName, code);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

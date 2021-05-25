@@ -13,13 +13,14 @@ pipeline:
     input: preprocessor
     output-artifact: java-files
   
+  java/emitter:
+    input: javagen
+    scope: scope-javagen/emitter
+    
   postprocessor:
     input: javagen
     output-artifact: java-files
   
-  postprocess/emitter:
-    input: postprocessor
-    scope: scope-javagen/emitter
 
 scope-javagen/emitter:
     input-artifact: java-files

@@ -8,6 +8,7 @@ import com.azure.autorest.customization.implementation.ls.EclipseLanguageClient;
 import com.azure.autorest.customization.implementation.ls.models.CodeAction;
 import com.azure.autorest.customization.implementation.ls.models.CodeActionKind;
 import com.azure.autorest.customization.implementation.ls.models.SymbolInformation;
+import com.azure.autorest.customization.implementation.ls.models.SymbolKind;
 import com.azure.autorest.customization.implementation.ls.models.WorkspaceEdit;
 import com.azure.autorest.customization.implementation.ls.models.WorkspaceEditCommand;
 import com.azure.autorest.extension.base.jsonrpc.Connection;
@@ -129,7 +130,7 @@ public class Postprocessor extends NewPlugin {
 
   private void writeToFiles(Map<String, String> fileContents) throws FormatterException {
     Formatter formatter = new Formatter();
-    for (Map.Entry<String, String> javaFile : fileContents.entrySet()) {
+    for (Map.Entry<String, String> javaFile : format(fileContents).entrySet()) {
       String formattedSource = javaFile.getValue();
 //      if (javaFile.getKey().endsWith(".java")) {
 //        try {
@@ -229,7 +230,24 @@ public class Postprocessor extends NewPlugin {
     try {
       languageClient = new EclipseLanguageClient(tempDirWithPrefix.toString());
       languageClient.initialize();
-      languageClient.s
+      EclipseLanguageClient finalLanguageClient = languageClient;
+      languageClient.findWorkspaceSymbol("*")
+        .stream().filter(si -> si.getKind() == SymbolKind.CLASS)
+        .forEach(classSymbol -> {
+          URI fileUri = classSymbol.getLocation().getUri();
+          Optional<CodeAction> organizeImports = finalLanguageClient.listCodeActions(fileUri, classSymbol.getLocation().getRange())
+                  .stream().filter(ca -> ca.getKind().equals(CodeActionKind.SOURCE_ORGANIZEIMPORTS.toString()))
+                  .findFirst();
+          if (organizeImports.isPresent()) {
+            WorkspaceEditCommand command;
+            if (organizeImports.get().getCommand() instanceof WorkspaceEditCommand) {
+              command = (WorkspaceEditCommand) organizeImports.get().getCommand();
+              for(WorkspaceEdit workspaceEdit : command.getArguments()) {
+                Utils.applyWorkspaceEdit(workspaceEdit, editor, finalLanguageClient);
+              }
+            }
+          }
+        });
       editor.removeFile("pom.xml");
       return editor.getContents();
     } catch (Exception e) {

@@ -263,6 +263,7 @@ public class Connection {
         if (listener != null) {
             listener.accept(content.toString());
         }
+        System.err.println("receive: " + content.toString());
         if (content instanceof ObjectNode)
         {
             executorService.submit(() -> {

@@ -9,6 +9,7 @@ import com.azure.autorest.customization.implementation.ls.models.CodeAction;
 import com.azure.autorest.customization.implementation.ls.models.CodeActionKind;
 import com.azure.autorest.customization.implementation.ls.models.SymbolInformation;
 import com.azure.autorest.customization.implementation.ls.models.SymbolKind;
+import com.azure.autorest.customization.implementation.ls.models.TextEdit;
 import com.azure.autorest.customization.implementation.ls.models.WorkspaceEdit;
 import com.azure.autorest.customization.implementation.ls.models.WorkspaceEditCommand;
 import com.azure.autorest.extension.base.jsonrpc.Connection;
@@ -230,23 +231,17 @@ public class Postprocessor extends NewPlugin {
     try {
       languageClient = new EclipseLanguageClient(tempDirWithPrefix.toString());
       languageClient.initialize();
+      Map<String, String> formatterSettings = new HashMap<>();
+      formatterSettings.put("java.format.settings.url", "https://raw.githubusercontent.com/google/styleguide/gh-pages/eclipse-java-google-style.xml");
+      formatterSettings.put("java.format.settings.profile", "GoogleStyle");
+      languageClient.notifyConfigurationChanged(formatterSettings);
       EclipseLanguageClient finalLanguageClient = languageClient;
       languageClient.findWorkspaceSymbol("*")
         .stream().filter(si -> si.getKind() == SymbolKind.CLASS)
         .forEach(classSymbol -> {
           URI fileUri = classSymbol.getLocation().getUri();
-          Optional<CodeAction> organizeImports = finalLanguageClient.listCodeActions(fileUri, classSymbol.getLocation().getRange())
-                  .stream().filter(ca -> ca.getKind().equals(CodeActionKind.SOURCE_ORGANIZEIMPORTS.toString()))
-                  .findFirst();
-          if (organizeImports.isPresent()) {
-            WorkspaceEditCommand command;
-            if (organizeImports.get().getCommand() instanceof WorkspaceEditCommand) {
-              command = (WorkspaceEditCommand) organizeImports.get().getCommand();
-              for(WorkspaceEdit workspaceEdit : command.getArguments()) {
-                Utils.applyWorkspaceEdit(workspaceEdit, editor, finalLanguageClient);
-              }
-            }
-          }
+          List<TextEdit> edits = finalLanguageClient.format(fileUri);
+          Utils.applyTextEdits(fileUri, edits, editor, finalLanguageClient);
         });
       editor.removeFile("pom.xml");
       return editor.getContents();

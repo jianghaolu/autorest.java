@@ -4,6 +4,7 @@ public class FormattingOptions {
     private int tabSize;
     private boolean insertSpaces;
     private boolean trimTrailingWhitespace;
+    private boolean trimFinalNewlines;
 
     public int getTabSize() {
         return tabSize;
@@ -27,5 +28,13 @@ public class FormattingOptions {
 
     public void setTrimTrailingWhitespace(boolean trimTrailingWhitespace) {
         this.trimTrailingWhitespace = trimTrailingWhitespace;
+    }
+
+    public boolean isTrimFinalNewlines() {
+        return trimFinalNewlines;
+    }
+
+    public void setTrimFinalNewlines(boolean trimFinalNewlines) {
+        this.trimFinalNewlines = trimFinalNewlines;
     }
 }

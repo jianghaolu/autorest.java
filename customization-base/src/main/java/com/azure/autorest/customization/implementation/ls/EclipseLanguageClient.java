@@ -6,6 +6,7 @@ import com.azure.autorest.customization.implementation.ls.models.CodeActionClien
 import com.azure.autorest.customization.implementation.ls.models.CodeActionKind;
 import com.azure.autorest.customization.implementation.ls.models.CodeActionKindValueSet;
 import com.azure.autorest.customization.implementation.ls.models.CodeActionLiteralSupport;
+import com.azure.autorest.customization.implementation.ls.models.DidChangeConfigurationParams;
 import com.azure.autorest.customization.implementation.ls.models.DidChangeTextDocumentParams;
 import com.azure.autorest.customization.implementation.ls.models.DidChangeWatchedFilesParams;
 import com.azure.autorest.customization.implementation.ls.models.DidCloseTextDocumentParams;
@@ -153,6 +154,7 @@ public class EclipseLanguageClient {
             params.getOptions().setTabSize(4);
             params.getOptions().setInsertSpaces(true);
             params.getOptions().setTrimTrailingWhitespace(true);
+            params.getOptions().setTrimFinalNewlines(true);
             return connection.requestWithObject(OBJECT_MAPPER.getTypeFactory().constructCollectionLikeType(List.class, TextEdit.class), "textDocument/formatting", params);
         } else {
             return Collections.emptyList();
@@ -209,6 +211,12 @@ public class EclipseLanguageClient {
         DidChangeWatchedFilesParams params = new DidChangeWatchedFilesParams();
         params.setChanges(changes);
         connection.notifyWithObject("workspace/didChangeWatchedFiles", params);
+    }
+
+    public void notifyConfigurationChanged(Map<String, String> settings) {
+        DidChangeConfigurationParams params = new DidChangeConfigurationParams();
+        params.setSettings(settings);
+        connection.notifyWithObject("workspace/didChangeConfiguration", params);
     }
 
     public void notifyFileToSave(URI fileUri) {
